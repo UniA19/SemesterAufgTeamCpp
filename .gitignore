@@ -1,0 +1,7 @@
+# Object files
+*.o
+*.elf
+
+# Libraries
+*.lib
+*.a
