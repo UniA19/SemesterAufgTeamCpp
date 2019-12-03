@@ -8,6 +8,7 @@
  *
 \* ------------------------------------------------------------------------- */
 
+/* #include <assert.h> */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,11 +16,27 @@
 #include <ctype.h>
 
 #define MAX_WIDTH 99
-#define MAX_HEIGHT 99
+#define MAX_HEIGHT MAX_WIDTH
 
 #define SUCCESS 0
 #define INPUT_ERROR -1
 #define BUFFER_ERROR -2
+
+#define TRUE 1
+#define FALSE 0
+
+/* The gap between left and right fields */
+#define print_gap() (printf("        "))
+
+
+static const char * const rowFormats[] =
+{
+        "   |",     /* 0: unhit - water */
+        "~~~|",     /* 1: hit water */
+        "###|",     /* 2: unhit ship on the right field*/
+        "...|",     /* 3: hit ship */
+        "XXX|"      /* 4: sunken ship */
+};
 
 enum shipstate
 {
@@ -39,35 +56,31 @@ enum playField
 typedef struct {
         int nx;
         int ny;
+        /* num_of_ship_left[i] is the number of i long ships left */
+        int num_of_ships_left_left[6];
+        int num_of_ships_left_right[6];
         /* 0 = unhit water, 1 = hit water, 2 = unhit ship, 3 = hit ship, 4 = sunken ship*/
         int **data_left;
         int **data_right;
 } field_t;
 
 
-static int alloc_field(field_t * fld)
+static int** alloc_field(int nx, int ny)
 {
-        int *slabs;
         int i;
 
-        /* No safety checks yet */
-        const int size2d = (fld->ny * fld->nx);
-
-        /* Room for all rows, NULL terminate */
-        fld->data_left = (int**) calloc(fld->ny + 1, sizeof(int*));
-        fld->data_right = (int**) calloc(fld->ny + 1, sizeof(int*));
-        /*(fld->data)[fld->ny] = NULL;  already zero-initialized, but be paranoid */
+        /* Room for all rows (Array of pointers) */
+        int ** array2d = (int**) calloc(ny, sizeof(int*));
 
         /* All data as a single slab */
-        slabs = (int*) calloc(size2d, sizeof(int));
+        int *slabs = (int*) calloc(nx * ny, sizeof(int));
 
-        for (i = 0; i < fld->ny; ++i) {
-                (fld->data_left)[i] = slabs;
-                (fld->data_right)[i] = slabs;
-                slabs += fld->nx;
+        for (i = 0; i < ny; ++i) {
+                array2d[i] = slabs;
+                slabs += nx;
         }
 
-        return size2d;
+        return array2d;
 }
 
 static void free_field(field_t* fld)
@@ -76,12 +89,6 @@ static void free_field(field_t* fld)
         free(fld->data_right[0]);
         free(fld->data_left);
         free(fld->data_right);
-}
-
-/* The gap between left and right fields */
-static void print_gap()
-{
-        printf("        ");
 }
 
 /* prints horizontal line, deviding the rows (--+---+---+...) */
@@ -108,22 +115,11 @@ void print_top_row(int nx)
         }
 }
 
-
-static char* rowFormats[] =
-{
-        "   |",     /* 0: unhit - water */
-        "~~~|",     /* 1: hit water */
-        "###|",     /* 2: unhit ship on the right field*/
-        "...|",     /* 3: hit ship */
-        "XXX|"      /* 4: sunken ship */
-};
-
-
 /* prints row including the numbering at the beginning of the line
  * ( 1|~~~|XXX|~~~|...)
  */
 
-void print_row(const int row[], int nx, int row_num, int is_right_field)
+void print_row(const int row[], int nx, int row_num, int is_left_field)
 {
         int i;
 
@@ -131,23 +127,12 @@ void print_row(const int row[], int nx, int row_num, int is_right_field)
 
         for (i = 0; i < nx; ++i) {
                 int state = row[i];
-                if (is_right_field && state == 2) {
+                if (is_left_field && state == 2) {
                         state = 0; /* keep hidden */
                 }
 
                 printf(rowFormats[state]);
         }
-}
-
-
-void print_row_left(const int row[], int nx, int row_num)
-{
-        print_row(row, nx, row_num, 0);
-}
-
-void print_row_right(const int row[], int nx, int row_num)
-{
-        print_row(row, nx, row_num, 1);
 }
 
 
@@ -159,6 +144,7 @@ void print_field(field_t * fld)
         int **data_right = fld->data_right;
 
         int row;
+
         print_top_row(nx);
         print_gap();
         print_top_row(nx);
@@ -170,7 +156,7 @@ void print_field(field_t * fld)
                 printf("\n");
                 print_row(data_left[row], nx, row + 1, 0);
                 print_gap();
-                print_row(data_right[row], nx, row + 1, 1);
+                print_row(data_right[row], nx, row + 1, 0);
                 printf("\n");
         }
         print_hline(nx);
@@ -281,7 +267,8 @@ int scan_coordinate(int * x, int * y, int nx, int ny)
 }
 
 /* returns direction (up = 0, left = 1, down = 2, right = 3) or negative number in case of error */
-int scan_direction(int * length){
+int scan_direction(int * length)
+{
         int direction = -1;
         int length_hold = -1;
         int i;
@@ -294,7 +281,6 @@ int scan_direction(int * length){
                 }
 
                 switch (c) {
-                        case '1':
                         case '2':
                         case '3':
                         case '4':
@@ -339,22 +325,21 @@ int choose_ships(field_t * fld)
         const int nx = fld->nx;
         const int ny = fld->ny;
         int **data_right = fld->data_right;
+        /* num_of_ship_left[i] is the number of i long ships left */
+        int num_of_ships_left[6];
+        memcpy(num_of_ships_left, fld->num_of_ships_left_right, sizeof(num_of_ships_left));
 
-        int num_of_5_left = 1;
-        int num_of_4_left = 2;
-        int num_of_3_left = 3;
-        int num_of_2_left = 4;
-        int i;
-        for (i = 0; i < 10; ++i) {
-                int j, x, y, status, direction, length;
+        while (num_of_ships_left[0] != 0 || num_of_ships_left[1] != 0 || num_of_ships_left[2] != 0 || num_of_ships_left[3] != 0 || num_of_ships_left[4] != 0 || num_of_ships_left[5] != 0) {
+                int i, x, y, status, direction, length;
+                int is_free = TRUE;
 
                 print_field(fld);
 
                 printf("You have ");
-                printf(num_of_5_left ? "1 battle ship (length 5) " : "");
-                printf(num_of_4_left ? "%i cruisers (length 4) " : "", num_of_4_left);
-                printf(num_of_3_left ? "%i destroyers (length 3) " : "", num_of_3_left);
-                printf(num_of_2_left ? "%i sub-marines (length 2) " : "", num_of_2_left);
+                printf(num_of_ships_left[5] ? "%i battle ship (length 5) " : "", num_of_ships_left[5]);
+                printf(num_of_ships_left[4] ? "%i cruisers (length 4) " : "", num_of_ships_left[4]);
+                printf(num_of_ships_left[3] ? "%i destroyers (length 3) " : "", num_of_ships_left[3]);
+                printf(num_of_ships_left[2] ? "%i sub-marines (length 2) " : "", num_of_ships_left[2]);
                 printf("left\n");
                 printf("Choose where to place your ships, by typing the start and end coordinate of each ship.\n");
                 while (((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR && status != BUFFER_ERROR)
@@ -370,25 +355,68 @@ int choose_ships(field_t * fld)
                         return BUFFER_ERROR;
                 }
 
-                for (j = 0; j < length; ++j) {
+                if (num_of_ships_left[length] <= 0) {
+                        continue;
+                }
+
+                for (i = 0; i < length; ++i) {
+                        int x_h = x;
+                        int y_h = y;
+                        int j;
                         switch (direction) {
                                 case 0:
-                                        *(data_right[y - j] + x) = UNHIT;
+                                        y_h = y - i;
                                         break;
                                 case 1:
-                                        *(data_right[y] + x - j) = UNHIT;
+                                        x_h = x - i;
                                         break;
                                 case 2:
-                                        *(data_right[y + j] + x) = UNHIT;
+                                        y_h = y + i;
                                         break;
                                 case 3:
-                                        *(data_right[y] + x + j) = UNHIT;
+                                        x_h = x + i;
+                                        break;
+                                default:
+                                        printf("Something really went wrong in choose_ships(), for(), for(), switch(), default.\n");
+                                        return INPUT_ERROR;
+                        }
+                        /* check whether the points in a 3x3 box around each to be filled box is free */
+                        for (j = -1; j <= 1; ++j) {
+                                int k;
+                                for (k = -1; k <= 1; ++k) {
+                                        /* first checks if the point is within the field and then whether the the point is occupied */
+                                        if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && *(data_right[y_h + k] + x_h + j) == UNHIT) {
+                                                is_free = FALSE;
+                                                break;
+                                        }
+                                }
+                                if (!is_free) break;
+                        }
+                        if (!is_free) break;
+                }
+                if (!is_free) continue;
+
+                for (i = 0; i < length; ++i) {
+                        switch (direction) {
+                                case 0:
+                                        *(data_right[y - i] + x) = UNHIT;
+                                        break;
+                                case 1:
+                                        *(data_right[y] + x - i) = UNHIT;
+                                        break;
+                                case 2:
+                                        *(data_right[y + i] + x) = UNHIT;
+                                        break;
+                                case 3:
+                                        *(data_right[y] + x + i) = UNHIT;
                                         break;
                                 default:
                                         printf("Something really went wrong in choose_ships(), for(), for(), switch(), default.\n");
                                         return INPUT_ERROR;
                         }
                 }
+
+                --num_of_ships_left[length];
         }
         return SUCCESS;
 }
@@ -398,7 +426,7 @@ int main(int argc, char *argv[])
         int i;
 
         /* Default with 10 x 10 */
-        field_t field = {10, 10, NULL, NULL};
+        field_t field = {10, 10, {0, 0, 4, 3, 2, 1}, {0, 0, 4, 3, 2, 1}, NULL, NULL};
 
         for (i = 1; i < argc; ++i) {
                 if ('-' == argv[i][0]) {
@@ -412,8 +440,8 @@ int main(int argc, char *argv[])
                 }
         }
 
-        alloc_field(&field);
-
+        field.data_left = alloc_field(field.nx, field.ny);
+        field.data_right = alloc_field(field.nx, field.ny);
 
         choose_ships(&field);
 
