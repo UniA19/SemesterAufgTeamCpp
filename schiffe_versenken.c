@@ -25,11 +25,14 @@
 #define TRUE 1
 #define FALSE 0
 
+/* number of ships (value) of each length (postion in array) */
+#define NUM_SHIPS_INIT {0, 0, 4, 3, 2, 1}
+
 /* The gap between left and right fields */
 #define print_gap() (printf("        "))
 
 
-static const char * const rowFormats[] =
+static const char *const rowFormats[] =
 {
         "   |",     /* 0: unhit - water */
         "~~~|",     /* 1: hit water */
@@ -47,34 +50,28 @@ enum shipstate
         SUNK        /* 4: sunken ship */
 };
 
-enum playField
-{
-        LEFT = 0,   /* Must test as FALSE */
-        RIGHT = 1   /* Must test as TRUE */
-};
-
 typedef struct {
         int nx;
         int ny;
         /* num_of_ship_left[i] is the number of i long ships left */
-        int num_of_ships_left_left[6];
-        int num_of_ships_left_right[6];
+        int num_ships_left_left[6];
+        int num_ships_left_right[6];
         /* 0 = unhit water, 1 = hit water, 2 = unhit ship, 3 = hit ship, 4 = sunken ship*/
         int **data_left;
         int **data_right;
 } field_t;
 
 
-static int** alloc_field(int nx, int ny)
+/* allocates one 2D-array for the battleship field */
+static int **alloc_field(int nx, int ny)
 {
-        int i;
-
         /* Room for all rows (Array of pointers) */
-        int ** array2d = (int**) calloc(ny, sizeof(int*));
+        int **array2d = (int**) calloc(ny, sizeof(int*));
 
         /* All data as a single slab */
         int *slabs = (int*) calloc(nx * ny, sizeof(int));
 
+        int i;
         for (i = 0; i < ny; ++i) {
                 array2d[i] = slabs;
                 slabs += nx;
@@ -83,7 +80,8 @@ static int** alloc_field(int nx, int ny)
         return array2d;
 }
 
-static void free_field(field_t* fld)
+/* frees the memory used in both the data_left and data_right 2D-array */
+static void free_field(field_t *fld)
 {
         free(fld->data_left[0]);
         free(fld->data_right[0]);
@@ -96,7 +94,6 @@ void print_hline(int nx)
 {
         int coli;
 
-        /* left field */
         printf("--+");
         for (coli = 0; coli < nx; ++coli) {
                 printf("---+");
@@ -115,10 +112,7 @@ void print_top_row(int nx)
         }
 }
 
-/* prints row including the numbering at the beginning of the line
- * ( 1|~~~|XXX|~~~|...)
- */
-
+/* prints row including the numbering at the beginning of the line ( 1|~~~|XXX|~~~|...) */
 void print_row(const int row[], int nx, int row_num, int is_left_field)
 {
         int i;
@@ -135,9 +129,10 @@ void print_row(const int row[], int nx, int row_num, int is_left_field)
         }
 }
 
-
-void print_field(field_t * fld)
+/* prints both entire battleship-fields */
+void print_field(field_t *fld)
 {
+        /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
         int **data_left = fld->data_left;
@@ -145,20 +140,24 @@ void print_field(field_t * fld)
 
         int row;
 
+        /* top row:   | A | B |...          | A | B |... */
         print_top_row(nx);
         print_gap();
         print_top_row(nx);
         printf("\n");
         for (row = 0; row < ny; ++row) {
+                /* horizontal line: --+---+---+...        --+---+---+... */
                 print_hline(nx);
                 print_gap();
                 print_hline(nx);
                 printf("\n");
+                /* other rows:   <row>|~~~|XXX|...          |   |XXX|... */
                 print_row(data_left[row], nx, row + 1, 0);
                 print_gap();
                 print_row(data_right[row], nx, row + 1, 0);
                 printf("\n");
         }
+        /* horizontal line: --+---+---+...        --+---+---+... */
         print_hline(nx);
         print_gap();
         print_hline(nx);
@@ -172,7 +171,14 @@ int flush_buff()
         return (c == EOF) ? BUFFER_ERROR : SUCCESS;
 }
 
-int scan_coordinate(int * x, int * y, int nx, int ny)
+/* e.g.: stdin: "11e" --> *x = 4, *y = 10
+ * production:
+ * <coordinate>  --> <digit>[<digit>]<letter>[letter]
+ * <coordinate>  --> <letter>[letter]<digit>[<digit>]
+ * <digit> --> '0'|'1'|...|'9'
+ * <letter> --> 'A'|'B'|...|'Z'|'a'|'b'|...|'z'
+ */
+int scan_coordinate(int *x, int *y, int nx, int ny)
 {
         /* mode: tracks which stage of parsing the function is in:
          * 1 : numbers first: 1st digit
@@ -184,7 +190,7 @@ int scan_coordinate(int * x, int * y, int nx, int ny)
          * 6 : letters first: 1st digit
          * 7 : letters first: 2nd digit */
         int mode;
-        char c = toupper(getchar());
+        char c = toupper(getchar()); /* toupper is there to remove case sensitivity */
         int x_hold = 0;
         int y_hold = 0;
 
@@ -210,16 +216,13 @@ int scan_coordinate(int * x, int * y, int nx, int ny)
                         }
                         switch (mode) {
                                 case 1:
+                                case 7:
+                                        /* shifts the old value by a digit, before adding the new value */
                                         y_hold *= 10;
                                         y_hold += c - '0';
                                         ++mode;
                                         break;
                                 case 6:
-                                        y_hold += c - '0';
-                                        ++mode;
-                                        break;
-                                case 7:
-                                        y_hold *= 10;
                                         y_hold += c - '0';
                                         ++mode;
                                         break;
@@ -237,11 +240,8 @@ int scan_coordinate(int * x, int * y, int nx, int ny)
                                         ++mode;
                                         break;
                                 case 3:
-                                        x_hold *= 26;
-                                        x_hold += c - 'A' + 1;
-                                        ++mode;
-                                        break;
                                 case 5:
+                                        /* shifts the old value by a letter, before adding the new value */
                                         x_hold *= 26;
                                         x_hold += c - 'A' + 1;
                                         ++mode;
@@ -258,7 +258,8 @@ int scan_coordinate(int * x, int * y, int nx, int ny)
                 return BUFFER_ERROR;
         }
 
-        if (x_hold > nx || y_hold > ny) {
+        /* makes sure x_hold, y_hold are within the field */
+        if (0 >= x_hold || x_hold > nx || 0 >= y_hold || y_hold > ny) {
                 return INPUT_ERROR;
         }
         *x = x_hold - 1;
@@ -266,8 +267,8 @@ int scan_coordinate(int * x, int * y, int nx, int ny)
         return SUCCESS;
 }
 
-/* returns direction (up = 0, left = 1, down = 2, right = 3) or negative number in case of error */
-int scan_direction(int * length)
+/* returns direction (up = 0, left = 1, down = 2, right = 3), passes length on through the pointer or returns negative number in case of error */
+int scan_direction(int *length)
 {
         int direction = -1;
         int length_hold = -1;
@@ -275,7 +276,7 @@ int scan_direction(int * length)
         char c;
 
         for (i = 0; i < 2; ++i) {
-                c = toupper(getchar());
+                c = toupper(getchar()); /* toupper is there to remove case sensitivity */
                 if (c == EOF) {
                         return BUFFER_ERROR;
                 }
@@ -320,31 +321,37 @@ int scan_direction(int * length)
         return direction;
 }
 
-int choose_ships(field_t * fld)
+int choose_ships(field_t *fld)
 {
+        /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
         int **data_right = fld->data_right;
         /* num_of_ship_left[i] is the number of i long ships left */
-        int num_of_ships_left[6];
-        memcpy(num_of_ships_left, fld->num_of_ships_left_right, sizeof(num_of_ships_left));
+        int num_ships_left[6];
+        /* copies the array from the struct in order not to ruin those values */
+        memcpy(num_ships_left, fld->num_ships_left_right, sizeof(num_ships_left));
 
-        while (num_of_ships_left[0] != 0 || num_of_ships_left[1] != 0 || num_of_ships_left[2] != 0 || num_of_ships_left[3] != 0 || num_of_ships_left[4] != 0 || num_of_ships_left[5] != 0) {
+        /* loop-condition checks whether there is still ships, that have not been set */
+        while (num_ships_left[0] || num_ships_left[1] || num_ships_left[2] || num_ships_left[3] || num_ships_left[4] || num_ships_left[5]) {
                 int i, x, y, status, direction, length;
+                /* variable containing the whether there are any ships in the way */
                 int is_free = TRUE;
 
                 print_field(fld);
 
                 printf("You have ");
-                printf(num_of_ships_left[5] ? "%i battle ship (length 5) " : "", num_of_ships_left[5]);
-                printf(num_of_ships_left[4] ? "%i cruisers (length 4) " : "", num_of_ships_left[4]);
-                printf(num_of_ships_left[3] ? "%i destroyers (length 3) " : "", num_of_ships_left[3]);
-                printf(num_of_ships_left[2] ? "%i sub-marines (length 2) " : "", num_of_ships_left[2]);
+                printf(num_ships_left[5] ? "%i battle ship (length 5) " : "", num_ships_left[5]);
+                printf(num_ships_left[4] ? "%i cruisers (length 4) " : "", num_ships_left[4]);
+                printf(num_ships_left[3] ? "%i destroyers (length 3) " : "", num_ships_left[3]);
+                printf(num_ships_left[2] ? "%i sub-marines (length 2) " : "", num_ships_left[2]);
                 printf("left\n");
                 printf("Choose where to place your ships, by typing the start and end coordinate of each ship.\n");
+                /* Scans coordinate and direction, where ship should be placed */
                 while (((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR && status != BUFFER_ERROR)
                     || ((direction = scan_direction(&length)) == INPUT_ERROR && direction != BUFFER_ERROR))
                 {
+                        /* Scans coordinates again, if there is an imediate input error */
                         flush_buff();
                         printf("Choose where to place your ships, by typing the start and end coordinate of each ship.\n");
                 }
@@ -355,14 +362,17 @@ int choose_ships(field_t * fld)
                         return BUFFER_ERROR;
                 }
 
-                if (num_of_ships_left[length] <= 0) {
+                /* checks if there are ships of the selected length left */
+                if (num_ships_left[length] <= 0) {
                         continue;
                 }
 
+                /* checks the boxes where the ship should be set and its surrounding box for other ships */
                 for (i = 0; i < length; ++i) {
                         int x_h = x;
                         int y_h = y;
                         int j;
+                        /* in-/decreases one coordinate by i in the direction based on "direction" */
                         switch (direction) {
                                 case 0:
                                         y_h = y - i;
@@ -380,11 +390,11 @@ int choose_ships(field_t * fld)
                                         printf("Something really went wrong in choose_ships(), for(), for(), switch(), default.\n");
                                         return INPUT_ERROR;
                         }
-                        /* check whether the points in a 3x3 box around each to be filled box is free */
+                        /* check whether the points in a 3x3 box around each box, that should be filled, are free */
                         for (j = -1; j <= 1; ++j) {
                                 int k;
                                 for (k = -1; k <= 1; ++k) {
-                                        /* first checks if the point is within the field and then whether the the point is occupied */
+                                        /* first checks if the point is within the field (0 <= point < size) and then whether the the point is occupied */
                                         if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && *(data_right[y_h + k] + x_h + j) == UNHIT) {
                                                 is_free = FALSE;
                                                 break;
@@ -396,7 +406,9 @@ int choose_ships(field_t * fld)
                 }
                 if (!is_free) continue;
 
+                /* places the ship onto the the boxes, by changing their state to UNHIT */
                 for (i = 0; i < length; ++i) {
+                        /* in-/decreases one coordinate by i in the direction based on "direction" */
                         switch (direction) {
                                 case 0:
                                         *(data_right[y - i] + x) = UNHIT;
@@ -415,8 +427,8 @@ int choose_ships(field_t * fld)
                                         return INPUT_ERROR;
                         }
                 }
-
-                --num_of_ships_left[length];
+                /* decrements the number of ships left of the length "length" */
+                --num_ships_left[length];
         }
         return SUCCESS;
 }
@@ -425,12 +437,13 @@ int main(int argc, char *argv[])
 {
         int i;
 
-        /* Default with 10 x 10 */
-        field_t field = {10, 10, {0, 0, 4, 3, 2, 1}, {0, 0, 4, 3, 2, 1}, NULL, NULL};
+        /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
+        field_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, NULL, NULL};
 
+        /* incomplete, should eventually read the arguments */
         for (i = 1; i < argc; ++i) {
                 if ('-' == argv[i][0]) {
-                        /*const char* opt = &argv[i][1];
+                        /*const char *opt = &argv[i][1];
                         printf("process opt: %s\n", argv[i]);
                         if (strncmp(opt, "n=", 2) == 0) {
                                 printf("get size = %s\n", argv[i]);
