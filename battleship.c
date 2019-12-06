@@ -181,7 +181,7 @@ int flush_buff()
 int scan_coordinate(int *x, int *y, int nx, int ny)
 {
         /* mode: tracks which stage of parsing the function is in:
-         * 1 : numbers first: 1st digit
+         * 0 : numbers first: 1st digit
          * 1 : numbers first: 2nd digit
          * 2 : numbers first: 1st letter
          * 3 : numbers first: 2nd letter
@@ -526,8 +526,6 @@ void bot_choose_ships(field_t *fld)
 /* temporary function */
 void bot_init(field_t *fld)
 {
-        const int nx = fld->nx;
-        const int ny = fld->ny;
         int **data_left = fld->data_left;
 
         *(data_left[0] + 0) = UNHIT;
@@ -541,6 +539,39 @@ void bot_init(field_t *fld)
         *(data_left[2] + 1) = UNHIT;
         *(data_left[2] + 3) = UNHIT;
         *(data_left[2] + 4) = UNHIT;
+}
+
+int is_already_hit(int **battle_field, int x, int y)
+{
+        return *(battle_field[y] + x) == SPLASH || *(battle_field[y] + x) == HIT || *(battle_field[y] + x) == SUNK;
+}
+
+void player_shoot(field_t *fld)
+{
+        const int nx = fld->nx;
+        const int ny = fld->ny;
+        int **data_left = fld->data_left;
+
+        int x, y;
+        int status;
+        
+        printf("Type the coordinates, where you want to shoot at.\n");
+        while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || is_already_hit(data_left, x, y))  {
+                printf("Error: Retype the coordinates, where you want to shoot at.\n");
+        }
+
+        switch (*(data_left[y] + x)) {
+                case NONE:
+                *(data_left[y] + x) = SPLASH;
+                        break;
+                case UNHIT:
+                        *(data_left[y] + x) = HIT;
+                        /* missing checking for sunk */
+                        break;
+                default:
+                        printf("Should not be reached\n");
+                        return;
+        }
 }
 
 int main(int argc, char *argv[])
@@ -571,10 +602,12 @@ int main(int argc, char *argv[])
         /* still loaded with bugs*/
         /* bot_choose_ships(&field); */
         bot_init(&field);
-        choose_ships(&field);
+        /*choose_ships(&field);*/
 
-        print_field(&field);
-
+        for (i = 0; i < 6; ++i) {
+                print_field(&field);
+                player_shoot(&field);
+        }
         free_field(&field);
 
         return 0;
