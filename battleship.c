@@ -122,7 +122,7 @@ void print_row(const int row[], int nx, int row_num, int is_left_field)
         for (i = 0; i < nx; ++i) {
                 int state = row[i];
                 if (is_left_field && state == UNHIT) {
-                       state = NONE; /* keep hidden */
+                       /*state = NONE; *//* keep hidden */
                 }
 
                 printf(rowFormats[state]);
@@ -445,7 +445,7 @@ void bot_choose_ships(field_t *fld)
         /* num_of_ship_left[i] is the number of i long ships left */
         int num_ships_left[6];
         /* copies the array from the struct in order not to ruin those values */
-        memcpy(num_ships_left, fld->num_ships_left_right, sizeof(num_ships_left));
+        memcpy(num_ships_left, fld->num_ships_left_left, sizeof(num_ships_left));
 
         /* loop-condition checks whether there is still ships, that have not been set */
         for (length = 2; length <= 5; ++length) {
@@ -523,6 +523,26 @@ void bot_choose_ships(field_t *fld)
         }
 }
 
+/* temporary function */
+void bot_init(field_t *fld)
+{
+        const int nx = fld->nx;
+        const int ny = fld->ny;
+        int **data_left = fld->data_left;
+
+        *(data_left[0] + 0) = UNHIT;
+        *(data_left[0] + 1) = UNHIT;
+        *(data_left[0] + 2) = UNHIT;
+        *(data_left[0] + 3) = UNHIT;
+        *(data_left[0] + 4) = UNHIT;
+
+
+        *(data_left[2] + 0) = UNHIT;
+        *(data_left[2] + 1) = UNHIT;
+        *(data_left[2] + 3) = UNHIT;
+        *(data_left[2] + 4) = UNHIT;
+}
+
 int main(int argc, char *argv[])
 {
         int i;
@@ -548,8 +568,9 @@ int main(int argc, char *argv[])
         field.data_left = alloc_field(field.nx, field.ny);
         field.data_right = alloc_field(field.nx, field.ny);
 
-        /* still loaded with bugs
-        bot_choose_ships(&field);*/
+        /* still loaded with bugs*/
+        /* bot_choose_ships(&field); */
+        bot_init(&field);
         choose_ships(&field);
 
         print_field(&field);
