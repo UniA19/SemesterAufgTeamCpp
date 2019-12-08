@@ -27,6 +27,8 @@
 
 /* number of ships (value) of each length (postion in array) */
 #define NUM_SHIPS_INIT {0, 0, 4, 3, 2, 1}
+#define MIN_SHIP_LENGTH 2
+#define MAX_SHIP_LENGTH 5
 
 /* The gap between left and right fields */
 #define print_gap() (printf("        "))
@@ -50,26 +52,28 @@ enum shipstate
         SUNK        /* 4: sunken ship */
 };
 
+typedef enum shipstate shipstate_t;
+
 typedef struct {
         int nx;
         int ny;
         /* num_of_ship_left[i] is the number of i long ships left */
-        int num_ships_left_left[6];
-        int num_ships_left_right[6];
+        int nShipsRemaining_left[MAX_SHIP_LENGTH + 1];
+        int nShipsRemaining_right[MAX_SHIP_LENGTH + 1];
         /* 0 = unhit water, 1 = hit water, 2 = unhit ship, 3 = hit ship, 4 = sunken ship*/
-        int **data_left;
-        int **data_right;
-} field_t;
+        shipstate_t **data_left;
+        shipstate_t **data_right;
+} play_fields_t;
 
 
 /* allocates one 2D-array for the battleship field */
-static int **alloc_field(int nx, int ny)
+static shipstate_t ** alloc_field(int nx, int ny)
 {
         /* Room for all rows (Array of pointers) */
-        int **array2d = (int**) calloc(ny, sizeof(int*));
+        shipstate_t **array2d = (shipstate_t**) calloc(ny, sizeof(shipstate_t*));
 
         /* All data as a single slab */
-        int *slabs = (int*) calloc(nx * ny, sizeof(int));
+        shipstate_t *slabs = (shipstate_t*) calloc(nx * ny, sizeof(shipstate_t));
 
         int i;
         for (i = 0; i < ny; ++i) {
@@ -81,7 +85,7 @@ static int **alloc_field(int nx, int ny)
 }
 
 /* frees the memory used in both the data_left and data_right 2D-array */
-static void free_field(field_t *fld)
+static void free_field(play_fields_t *fld)
 {
         free(fld->data_left[0]);
         free(fld->data_right[0]);
@@ -113,7 +117,7 @@ void print_top_row(int nx)
 }
 
 /* prints row including the numbering at the beginning of the line ( 1|~~~|XXX|~~~|...) */
-void print_row(const int row[], int nx, int row_num, int is_left_field)
+void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field)
 {
         int i;
 
@@ -130,13 +134,13 @@ void print_row(const int row[], int nx, int row_num, int is_left_field)
 }
 
 /* prints both entire battleship-fields */
-void print_field(field_t *fld)
+void print_field(play_fields_t *fld)
 {
         /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
-        int **data_left = fld->data_left;
-        int **data_right = fld->data_right;
+        shipstate_t **data_left = fld->data_left;
+        shipstate_t **data_right = fld->data_right;
 
         int row;
 
@@ -321,58 +325,74 @@ int scan_direction(int *length)
         return direction;
 }
 
-int choose_ships(field_t *fld)
+int choose_ships(play_fields_t *fld)
 {
         /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
-        int **data_right = fld->data_right;
-        /* num_of_ship_left[i] is the number of i long ships left */
-        int num_ships_left[6];
-        /* copies the array from the struct in order not to ruin those values */
-        memcpy(num_ships_left, fld->num_ships_left_right, sizeof(num_ships_left));
+        shipstate_t **data_right = fld->data_right;
+        /* nShipsRemaining[i] is the number of i long ships left */
+        int nShipsRemaining[MAX_SHIP_LENGTH + 1];
+        /* using "nRemainingShips" as scratch space */
+        memcpy(nShipsRemaining, fld->nShipsRemaining_right, sizeof(nShipsRemaining));
 
         /* loop-condition checks whether there is still ships, that have not been set */
-        while (num_ships_left[2] || num_ships_left[3] || num_ships_left[4] || num_ships_left[5]) {
+        while (1) {
                 int i, x, y, status, direction, length;
                 /* variable containing the whether there are any ships in the way */
                 int is_free = TRUE;
 
+                {
+                        /* scan to see if any ships are still remaining (not sunk) */
+                        int anyShips = FALSE;
+                        int i;
+                        for (i = MIN_SHIP_LENGTH; i <= MAX_SHIP_LENGTH && !anyShips; ++i) {
+                                anyShips = nShipsRemaining[i];
+                        }
+                        if (!anyShips) {
+                                break;
+                        }
+                }
+
                 print_field(fld);
 
-                printf("You have ");
-                printf(num_ships_left[5] ? "%i battle ship (length 5) " : "", num_ships_left[5]);
-                printf(num_ships_left[4] ? "%i cruisers (length 4) " : "", num_ships_left[4]);
-                printf(num_ships_left[3] ? "%i destroyers (length 3) " : "", num_ships_left[3]);
-                printf(num_ships_left[2] ? "%i sub-marines (length 2) " : "", num_ships_left[2]);
-                printf("left\n");
+                printf("You have");
+                for (i = MAX_SHIP_LENGTH; i >= MIN_SHIP_LENGTH; --i) {
+                        if (nShipsRemaining[i]) {
+                                printf(" %i battle ship (length %i)", nShipsRemaining[i], i);
+                        }
+                }
+                printf(" remaining\n");
                 printf("Choose where to place your ships, by typing the start and end coordinate of each ship.\n");
                 /* Scans coordinate and direction, where ship should be placed */
-                while (((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR && status != BUFFER_ERROR)
-                    || ((direction = scan_direction(&length)) == INPUT_ERROR && direction != BUFFER_ERROR))
+                while
+                (
+                    ((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR && status != BUFFER_ERROR)
+                 || ((direction = scan_direction(&length)) == INPUT_ERROR && direction != BUFFER_ERROR)
+                )
                 {
-                        /* Scans coordinates again, if there is an imediate input error */
+                        /* an immediate input error? - rescan now */
                         flush_buff();
                         printf("Choose where to place your ships, by typing the start and end coordinate of each ship.\n");
                 }
                 flush_buff();
 
                 if (status == BUFFER_ERROR) {
-                        printf("Buffer Error.");
+                        printf("Buffer Error.\n");
                         return BUFFER_ERROR;
                 }
 
-                /* checks if there are ships of the selected length left */
-                if (num_ships_left[length] <= 0) {
+                /* check if there are ships of the selected length left */
+                if (length > MAX_SHIP_LENGTH || nShipsRemaining[length] <= 0) {
                         continue;
                 }
 
-                /* checks the boxes where the ship should be set and its surrounding box for other ships */
+                /* check the boxes where the ship should be set and its surrounding box for other ships */
                 for (i = 0; i < length; ++i) {
                         int x_h = x;
                         int y_h = y;
                         int j;
-                        /* in-/decreases one coordinate by i in the direction based on "direction" */
+                        /* in-/decrease one coordinate by i in the direction based on "direction" */
                         switch (direction) {
                                 case 0:
                                         y_h = y - i;
@@ -394,7 +414,7 @@ int choose_ships(field_t *fld)
                         for (j = -1; j <= 1; ++j) {
                                 int k;
                                 for (k = -1; k <= 1; ++k) {
-                                        /* first checks if the point is within the field (0 <= point < size) and then whether the the point is occupied */
+                                        /* first check if the point is within the field (0 <= point < size) and then whether the the point is occupied */
                                         if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && *(data_right[y_h + k] + x_h + j) == UNHIT) {
                                                 is_free = FALSE;
                                                 break;
@@ -428,32 +448,34 @@ int choose_ships(field_t *fld)
                         }
                 }
                 /* decrements the number of ships left of the length "length" */
-                --num_ships_left[length];
+                --nShipsRemaining[length];
         }
+
         return SUCCESS;
 }
 
-/* still loaded with bugs */
-void bot_choose_ships(field_t *fld)
+void bot_choose_ships(play_fields_t *fld)
 {
         /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
-        int **data_left = fld->data_left;
+        shipstate_t **data_left = fld->data_left;
 
         int length;
         /* num_of_ship_left[i] is the number of i long ships left */
-        int num_ships_left[6];
+        int nShipsRemaining[MAX_SHIP_LENGTH + 1];
         /* copies the array from the struct in order not to ruin those values */
-        memcpy(num_ships_left, fld->num_ships_left_left, sizeof(num_ships_left));
+        memcpy(nShipsRemaining, fld->nShipsRemaining_left, sizeof(nShipsRemaining));
 
-        /* loop-condition checks whether there is still ships, that have not been set */
-        for (length = 2; length <= 5; ++length) {
-                while (num_ships_left[length]) {
+        /* populate with ships - place longest ships first, while there still is enough room */
+        for (length = MAX_SHIP_LENGTH; length >= MIN_SHIP_LENGTH; --length) {
+                while (nShipsRemaining[length]) {
                         int i;
-                        int x = rand() % nx;
-                        int y = rand() % ny;
-                        int direction = rand() % 4;
+                        /* ships can only be set up (= 0) or left (= 1) */
+                        int direction = rand() % 2;
+                        /* changes the possible coordinates, so that the ship fully on the field */
+                        int x = direction ? rand() % (nx - (length - 1)) + length - 1 : rand() % nx;
+                        int y = direction ? rand() % ny : rand() % (ny - (length - 1)) + length - 1;
                         /* variable containing the whether there are any ships in the way */
                         int is_free = TRUE;
 
@@ -470,15 +492,16 @@ void bot_choose_ships(field_t *fld)
                                         case 1:
                                                 x_h = x - i;
                                                 break;
-                                        case 2:
-                                                y_h = y + i;
-                                                break;
-                                        case 3:
-                                                x_h = x + i;
+                                        case 2: case 3:
+                                                printf("Directions 2, 3 should not occur in bot_choose_ships().\n");
                                                 break;
                                         default:
                                                 printf("Something really went wrong in choose_ships(), for(), for(), switch(), default.\n");
                                                 return;
+                                }
+                                if (0 > y_h || y_h >= ny || 0 > x_h || x_h >= nx) {
+                                        printf("Error should not be reached!\n");
+                                        is_free = FALSE;
                                 }
                                 /* check whether the points in a 3x3 box around each box, that should be filled, are free */
                                 for (j = -1; j <= 1; ++j) {
@@ -506,55 +529,34 @@ void bot_choose_ships(field_t *fld)
                                         case 1:
                                                 *(data_left[y] + x - i) = UNHIT;
                                                 break;
-                                        case 2:
-                                                *(data_left[y + i] + x) = UNHIT;
-                                                break;
-                                        case 3:
-                                                *(data_left[y] + x + i) = UNHIT;
+                                        case 2: case 3:
+                                                printf("Directions 2, 3 should not occur in bot_choose_ships().\n");
                                                 break;
                                         default:
-                                                printf("Something really went wrong in choose_ships(), for(), for(), switch(), default.\n");
+                                                printf("Something really went wrong in bot_choose_ships(), for(), while(), for(), switch(), default.\n");
                                                 return;
                                 }
                         }
                         /* decrements the number of ships left of the length "length" */
-                        --num_ships_left[length];
+                        --nShipsRemaining[length];
                 }
         }
 }
 
-/* temporary function */
-void bot_init(field_t *fld)
-{
-        int **data_left = fld->data_left;
-
-        *(data_left[0] + 0) = UNHIT;
-        *(data_left[0] + 1) = UNHIT;
-        *(data_left[0] + 2) = UNHIT;
-        *(data_left[0] + 3) = UNHIT;
-        *(data_left[0] + 4) = UNHIT;
-
-
-        *(data_left[2] + 0) = UNHIT;
-        *(data_left[2] + 1) = UNHIT;
-        *(data_left[2] + 3) = UNHIT;
-        *(data_left[2] + 4) = UNHIT;
-}
-
-int is_already_hit(int **battle_field, int x, int y)
+int is_already_hit(shipstate_t **battle_field, int x, int y)
 {
         return *(battle_field[y] + x) == SPLASH || *(battle_field[y] + x) == HIT || *(battle_field[y] + x) == SUNK;
 }
 
-void player_shoot(field_t *fld)
+void player_shoot(play_fields_t *fld)
 {
         const int nx = fld->nx;
         const int ny = fld->ny;
-        int **data_left = fld->data_left;
+        shipstate_t **data_left = fld->data_left;
 
         int x, y;
         int status;
-        
+
         printf("Type the coordinates, where you want to shoot at.\n");
         while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || is_already_hit(data_left, x, y))  {
                 printf("Error: Retype the coordinates, where you want to shoot at.\n");
@@ -562,14 +564,14 @@ void player_shoot(field_t *fld)
 
         switch (*(data_left[y] + x)) {
                 case NONE:
-                *(data_left[y] + x) = SPLASH;
+                        *(data_left[y] + x) = SPLASH;
                         break;
                 case UNHIT:
                         *(data_left[y] + x) = HIT;
-                        /* missing checking for sunk */
+                        /* TODO: missing checking for sunk */
                         break;
                 default:
-                        printf("Should not be reached\n");
+                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                         return;
         }
 }
@@ -578,7 +580,7 @@ int main(int argc, char *argv[])
 {
         int i;
         /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
-        field_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, NULL, NULL};
+        play_fields_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, NULL, NULL};
 
         srand(time(NULL));
         rand();
@@ -599,9 +601,7 @@ int main(int argc, char *argv[])
         field.data_left = alloc_field(field.nx, field.ny);
         field.data_right = alloc_field(field.nx, field.ny);
 
-        /* still loaded with bugs*/
-        /* bot_choose_ships(&field); */
-        bot_init(&field);
+        bot_choose_ships(&field);
         /*choose_ships(&field);*/
 
         for (i = 0; i < 6; ++i) {
