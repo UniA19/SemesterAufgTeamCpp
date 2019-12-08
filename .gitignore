@@ -5,3 +5,10 @@
 # Libraries
 *.lib
 *.a
+
+# Executables
+a.out
+
+# Docs
+*.pdf
+*.html
