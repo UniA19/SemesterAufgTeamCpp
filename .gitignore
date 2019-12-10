@@ -12,3 +12,6 @@ a.out
 # Docs
 *.pdf
 *.html
+
+# Dolphin
+.directory
