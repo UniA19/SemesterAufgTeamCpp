@@ -26,28 +26,41 @@
 
 /* The gap between left and right fields */
 #define print_gap() (printf("        "))
+#define is_unhit(box) ((box) == UNHIT_HORIZ || (box) == UNHIT_VERT)
+#define is_hit(box) ((box) == HIT_HORIZ || (box) == HIT_VERT)
+#define is_sunk(box) ((box) == SUNK_HORIZ || (box) == SUNK_VERT)
+#define is_ship(box) (is_unhit(box) || is_hit(box) || is_sunk(box))
+#define has_been_shot(box) ((box) == SPLASH || is_hit(box) || is_sunk(box))
+#define is_horiz(box) ((box) == UNHIT_HORIZ || (box) == HIT_HORIZ || (box) == SUNK_HORIZ)
+#define is_vert(box) ((box) == UNHIT_VERT || (box) == HIT_VERT || (box) == SUNK_VERT)
 
 /* debug constants */
 #define SHOW_BOTS_SHIP
-/*#define SKIP_SHIP_CHOICE*/
+#define SKIP_SHIP_CHOICE
 
 
 static const char *const rowFormats[] =
 {
-        "   |",     /* 0: unhit - water */
-        "~~~|",     /* 1: hit water */
-        "###|",     /* 2: unhit ship on the right field*/
-        "...|",     /* 3: hit ship */
-        "XXX|"      /* 4: sunken ship */
+        "   |",         /* 0: unhit - water */
+        "~~~|",         /* 1: hit water */
+        "===|",         /* 2: horizontal, unhit ship on the right field*/
+        "III|",         /* 3: vertical, unhit ship on the right field*/
+        "hhh|",         /* 4: horizontal, hit ship */
+        "vvv|",         /* 5: vertical, hit ship */
+        "---|",         /* 6: horizontal, sunken ship */
+        "||||"          /* 7: vertical, sunken ship */
 };
 
 enum shipstate
 {
-        NONE = 0,   /* 0: unhit - water */
-        SPLASH,     /* 1: hit water */
-        UNHIT,      /* 2: unhit ship on the right field*/
-        HIT,        /* 3: hit ship */
-        SUNK        /* 4: sunken ship */
+        NONE = 0,       /* 0: unhit - water */
+        SPLASH,         /* 1: hit water */
+        UNHIT_HORIZ,    /* 2: horizontal, unhit ship on the right field*/
+        UNHIT_VERT,     /* 3: vertical, unhit ship on the right field*/
+        HIT_HORIZ,      /* 4: horizontal, hit ship */
+        HIT_VERT,       /* 5: vertical, hit ship */
+        SUNK_HORIZ,     /* 6: horizontal, sunken ship */
+        SUNK_VERT       /* 7: vertical, sunken ship */
 };
 
 typedef enum shipstate shipstate_t;
@@ -135,7 +148,7 @@ void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field)
 
         for (i = 0; i < nx; ++i) {
                 int state = row[i];
-                if (is_left_field && state == UNHIT) {
+                if (is_left_field && is_unhit(state)) {
 #ifndef SHOW_BOTS_SHIP
                        state = NONE; /* keep hidden */
 #endif
@@ -420,7 +433,7 @@ int choose_ships(play_fields_t *fld)
                                 int k;
                                 for (k = -1; k <= 1 && is_free; ++k) {
                                         /* first check if the point is within the field (0 <= point < size) and then whether the the point is occupied */
-                                        if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && data_right[y_h + k][x_h + j] == UNHIT) {
+                                        if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && is_unhit(data_right[y_h + k][x_h + j])) {
                                                 is_free = FALSE;
                                         }
                                 }
@@ -436,16 +449,16 @@ int choose_ships(play_fields_t *fld)
                         /* in-/decrease one coordinate by i based on the direction */
                         switch (direction) {
                                 case RIGHT:
-                                        data_right[y][x + i] = UNHIT;
+                                        data_right[y][x + i] = UNHIT_HORIZ;
                                         break;
                                 case DOWN:
-                                        data_right[y + i][x] = UNHIT;
+                                        data_right[y + i][x] = UNHIT_VERT;
                                         break;
                                 case LEFT:
-                                        data_right[y][x - i] = UNHIT;
+                                        data_right[y][x - i] = UNHIT_HORIZ;
                                         break;
                                 case UP:
-                                        data_right[y - i][x] = UNHIT;
+                                        data_right[y - i][x] = UNHIT_VERT;
                                         break;
                                 default:
                                         printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
@@ -513,7 +526,7 @@ void bot_choose_ships(play_fields_t *fld)
                                         int k;
                                         for (k = -1; k <= 1 && is_free; ++k) {
                                                 /* first check if the point is within the field (0 <= point < size) and then whether the the point is occupied */
-                                                if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && data_left[y_h + k][x_h + j] == UNHIT) {
+                                                if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && is_unhit(data_left[y_h + k][x_h + j])) {
                                                         is_free = FALSE;
                                                 }
                                         }
@@ -526,10 +539,10 @@ void bot_choose_ships(play_fields_t *fld)
                                 /* ships can only be RIGHT (= 0) or DOWN (= 1) */
                                 if (direction == DOWN) {
                                         /* direction = DOWN */
-                                        data_left[y + i][x] = UNHIT;
+                                        data_left[y + i][x] = UNHIT_VERT;
                                 } else {
                                         /* direction = RIGHT */
-                                        data_left[y][x + i] = UNHIT;
+                                        data_left[y][x + i] = UNHIT_HORIZ;
                                 }
                         }
                         /* decrements the number of ships left of the length "length" */
@@ -538,9 +551,60 @@ void bot_choose_ships(play_fields_t *fld)
         }
 }
 
-int is_already_hit(shipstate_t **battle_field, int x, int y)
+
+int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], int x, int y, int nx, int ny)
 {
-        return battle_field[y][x] == SPLASH || battle_field[y][x] == HIT || battle_field[y][x] == SUNK;
+        if (x < 0 || x >= nx || y < 0 || y >= ny || !is_hit(battle_field[y][x])) {
+                printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
+                return -1;
+        }
+        if (is_horiz(battle_field[y][x])) {
+                int i;
+                /* find the leftmost part of the ship and changes x to that */
+                while ((0 <= (x - 1)) && is_ship(battle_field[y][x - 1])) {
+                        --x;
+                }
+                /* iterate over the length of the ship and check if every box is hit */
+                for (i = x; ((i < nx) && is_ship(battle_field[y][i])); ++i) {
+                        if (!is_hit(battle_field[y][i])) {
+                                if (is_sunk(battle_field[y][i])) {
+                                        printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
+                                }
+                                return FALSE;
+                        }
+                }
+                /* iterate over the length of the ship set all of the hit boxes to sunk */
+                for (i = x; ((i < nx) && is_ship(battle_field[y][i])); ++i) {
+                        battle_field[y][i] = SUNK_HORIZ;
+                }
+                --nShipsRemaining[x - i];
+                return TRUE;
+        } else if (is_vert(battle_field[y][x])) {
+                int i;
+                /* find the topmost part of the ship and changes y to that */
+                while ((0 <= (y - 1)) && is_ship(battle_field[y - 1][x])) {
+                        --y;
+                }
+                /* iterate over the length of the ship and check if every box is hit */
+                for (i = y; ((i < ny) && is_ship(battle_field[i][x])); ++i) {
+                        if (!is_hit(battle_field[i][x])) {
+                                if (is_sunk(battle_field[i][x])) {
+                                        printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
+                                }
+                                return FALSE;
+                        }
+                }
+                /* iterate over the length of the ship set all of the hit boxes to sunk */
+                for (i = y; ((i < ny) && is_ship(battle_field[i][x])); ++i) {
+                        battle_field[i][x] = SUNK_VERT;
+                }
+                --nShipsRemaining[y - i];
+                putchar('Y');
+                return TRUE;
+        } else {
+                printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
+                return FALSE;
+        }
 }
 
 void player_shoot(play_fields_t *fld)
@@ -548,12 +612,13 @@ void player_shoot(play_fields_t *fld)
         const int nx = fld->nx;
         const int ny = fld->ny;
         shipstate_t **data_left = fld->data_left;
+        int *nShipsRemaining_left = fld->nShipsRemaining_left;
 
         int x, y;
         int status;
 
         printf("Type the coordinates, where you want to shoot at.\n");
-        while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || is_already_hit(data_left, x, y))  {
+        while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || has_been_shot(data_left[y][x]))  {
                 printf("Error: Retype the coordinates, where you want to shoot at.\n");
         }
 
@@ -561,9 +626,13 @@ void player_shoot(play_fields_t *fld)
                 case NONE:
                         data_left[y][x] = SPLASH;
                         break;
-                case UNHIT:
-                        data_left[y][x] = HIT;
-                        /* TODO: missing checking for sunk */
+                case UNHIT_VERT:
+                        data_left[y][x] = HIT_VERT;
+                        test_ship_status(data_left, nShipsRemaining_left, x, y, nx, ny);
+                        break;
+                case UNHIT_HORIZ:
+                        data_left[y][x] = HIT_HORIZ;
+                        test_ship_status(data_left, nShipsRemaining_left, x, y, nx, ny);
                         break;
                 default:
                         printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
