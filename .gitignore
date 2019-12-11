@@ -1,17 +1,40 @@
-# Object files
-*.o
-*.elf
+# Editor and misc backup files - anywhere
+*~
+.*~
+.*.swp
+*.bak
+*.bak[0-9][0-9]
+\#*\#
 
-# Libraries
+# File-browser settings - anywhere
+.directory
+
+# Objects and archives - anywhere
+*.[oa]
+*.la
+*.so
+*.elf
 *.lib
-*.a
+
+# Other rubbish
+*.gch
 
 # Executables
 a.out
+*.exe
 
-# Docs
+# Docs, generated files
 *.pdf
 *.html
 
-# Dolphin
-.directory
+# Corefiles
+core
+
+# Source packages - anywhere
+*.tar.bz2
+*.tar.gz
+*.tar.xz
+*.tar
+*.tgz
+
+# End
