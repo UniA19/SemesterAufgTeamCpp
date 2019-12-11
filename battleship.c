@@ -36,7 +36,7 @@
 
 /* debug constants */
 #define SHOW_BOTS_SHIP
-#define SKIP_SHIP_CHOICE
+/*#define SKIP_SHIP_CHOICE*/
 
 
 static const char *const rowFormats[] =
@@ -577,7 +577,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], int x, i
                 for (i = x; ((i < nx) && is_ship(battle_field[y][i])); ++i) {
                         battle_field[y][i] = SUNK_HORIZ;
                 }
-                --nShipsRemaining[x - i];
+                --nShipsRemaining[i - x];
                 return TRUE;
         } else if (is_vert(battle_field[y][x])) {
                 int i;
@@ -598,7 +598,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], int x, i
                 for (i = y; ((i < ny) && is_ship(battle_field[i][x])); ++i) {
                         battle_field[i][x] = SUNK_VERT;
                 }
-                --nShipsRemaining[y - i];
+                --nShipsRemaining[i - y];
                 putchar('Y');
                 return TRUE;
         } else {
