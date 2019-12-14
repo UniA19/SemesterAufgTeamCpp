@@ -51,8 +51,7 @@ static const char *const rowFormats[] =
         "||||"          /* 7: vertical, sunken ship */
 };
 
-enum shipstate
-{
+typedef enum {
         NONE = 0,       /* 0: unhit - water */
         SPLASH,         /* 1: hit water */
         UNHIT_HORIZ,    /* 2: horizontal, unhit ship on the right field*/
@@ -61,21 +60,16 @@ enum shipstate
         HIT_VERT,       /* 5: vertical, hit ship */
         SUNK_HORIZ,     /* 6: horizontal, sunken ship */
         SUNK_VERT       /* 7: vertical, sunken ship */
-};
+} shipstate_t;
 
-typedef enum shipstate shipstate_t;
-
-enum direction
-{
+typedef enum {
         BUFFER_ERROR_DIRECTION = BUFFER_ERROR,
         INPUT_ERROR_DIRECTION = INPUT_ERROR,
         RIGHT = 0,
         DOWN,
         LEFT,
         UP
-};
-
-typedef enum direction direction_t;
+} direction_t;
 
 typedef struct {
         int nx;
@@ -378,7 +372,7 @@ int choose_ships(play_fields_t *fld)
                                         printf("%i battle ship%s (length %i) ", nShipsRemaining[i], nShipsRemaining[i] == 1 ? "" : "s", i);
                                 }
                         }
-                        printf(" remaining\n");
+                        printf("remaining\n");
                 } else {
                         printField = TRUE;
                 }
