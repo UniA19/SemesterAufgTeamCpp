@@ -34,6 +34,8 @@
 #define is_horiz(box) ((box) == UNHIT_HORIZ || (box) == HIT_HORIZ || (box) == SUNK_HORIZ)
 #define is_vert(box) ((box) == UNHIT_VERT || (box) == HIT_VERT || (box) == SUNK_VERT)
 
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
 /* debug constants */
 #define SHOW_BOTS_SHIP
 /*#define SKIP_SHIP_CHOICE*/
@@ -473,6 +475,8 @@ void bot_choose_ships(play_fields_t *fld)
         shipstate_t **data_left = fld->data_left;
 
         int length;
+        /* number of times the field was reset, because of ship-jamming */
+        int numOfReTries = 0;
         /* nShipsRemaining[i] is the number of i long ships left */
         int nShipsRemaining[MAX_SHIP_LENGTH + 1];
         /* using "nRemainingShips" as scratch space */
@@ -492,6 +496,11 @@ void bot_choose_ships(play_fields_t *fld)
                         int is_free = TRUE;
                         ++numOfTries;
                         if (numOfTries > 1000) {
+                                if (numOfReTries > 1000) {
+                                        printf("\nNo legal postions for the bot's ships found.\n");
+                                        printf("Increase the value of x or y coordinate, so that there is eough room for the ships.\n\n");
+                                        exit(INPUT_ERROR);
+                                }
                                 /* reset variables */
                                 length = MAX_SHIP_LENGTH + 1;
                                 memcpy(nShipsRemaining, fld->nShipsRemaining_left, sizeof(nShipsRemaining));
@@ -501,6 +510,7 @@ void bot_choose_ships(play_fields_t *fld)
                                                 data_left[i][j] = NONE;
                                         }
                                 }
+                                ++numOfReTries;
                                 break;
                         }
 
@@ -613,6 +623,7 @@ void player_shoot(play_fields_t *fld)
 
         printf("Type the coordinates, where you want to shoot at.\n");
         while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || has_been_shot(data_left[y][x]))  {
+                flush_buff();
                 printf("Error: Retype the coordinates, where you want to shoot at.\n");
         }
 
@@ -645,14 +656,49 @@ int main(int argc, char *argv[])
 
         /* incomplete, should eventually read the arguments */
         for (i = 1; i < argc; ++i) {
-                if ('-' == argv[i][0]) {
-                        /*const char *opt = &argv[i][1];
-                        printf("process opt: %s\n", argv[i]);
+                if ('-' == argv[i][0] && '-' != argv[i][1] ) {
+                        const char *opt = &argv[i][1];
+                        /* printf("process opt: %s\n", argv[i]); */
                         if (strncmp(opt, "n=", 2) == 0) {
-                                printf("get size = %s\n", argv[i]);
-                                field_left.nx = 5;
-                                field_right.nx = 5;
-                        }*/
+                                char *end;
+                                long l;
+                                l = strtol(opt + 2, &end, 10);
+                                if (end == opt + 2 || *end || l < MAX_SHIP_LENGTH || l > min(MAX_WIDTH, MAX_HEIGHT)) {
+                                        printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
+                                        return INPUT_ERROR;
+                                }
+                                field.nx = (int)l;
+                                field.ny = (int)l;
+                        } else if (strncmp(opt, "x=", 2) == 0) {
+                                char *end;
+                                long l;
+                                l = strtol(opt + 2, &end, 10);
+                                if (end == opt + 2 || *end || l < MAX_SHIP_LENGTH || l > MAX_WIDTH) {
+                                        printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
+                                        return INPUT_ERROR;
+                                }
+                                field.nx = (int)l;
+                        } else if (strncmp(opt, "y=", 2) == 0) {
+                                char *end;
+                                long l;
+                                l = strtol(opt + 2, &end, 10);
+                                if (end == opt + 2 || *end || l < MAX_SHIP_LENGTH || l > MAX_HEIGHT) {
+                                        printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
+                                        return INPUT_ERROR;
+                                }
+                                field.ny = (int)l;
+                        } else if (opt[0] == 'h') {
+                                printf("\nUsage: %s [OPTION]...\n", argv[0]);
+                                printf("\nOptions:\n");
+                                printf(" -n=<n> sets the battle-field width and height to <n>\n");
+                                printf(" -x=<n> sets the battle-field width to <n>\n");
+                                printf(" -y=<n> sets the battle-field height to <n>\n");
+                                printf("(-h)    shows this help\n\n");
+                                return SUCCESS;
+                        } else {
+                                printf("Unknown argument: \"%s\"!\n", argv[i]);
+                                return INPUT_ERROR;
+                        }
                 }
         }
 
@@ -670,7 +716,7 @@ int main(int argc, char *argv[])
         }
         free_field(&field);
 
-        return 0;
+        return SUCCESS;
 }
 
 /* ************************************************************************* */
