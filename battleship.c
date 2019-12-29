@@ -15,6 +15,8 @@
 #define SUCCESS 0
 #define INPUT_ERROR -1
 #define BUFFER_ERROR -2
+#define EXIT -3
+#define UNKNOWN_ERROR -4
 
 #define TRUE 1
 #define FALSE 0
@@ -38,7 +40,6 @@
 
 /* debug constants */
 #define SHOW_BOTS_SHIP
-/*#define SKIP_SHIP_CHOICE*/
 
 
 static const char *const rowFormats[] =
@@ -229,6 +230,8 @@ int scan_coordinate(int *x, int *y, int nx, int ny)
         } else if (isalpha(c)) {
                 mode = 5;
                 x_hold = c - 'A' + 1;
+        } else if (c == '/') {
+                return EXIT;
         } else {
                 return INPUT_ERROR;
         }
@@ -378,12 +381,16 @@ int choose_ships(play_fields_t *fld)
                 } else {
                         printField = TRUE;
                 }
-                printf("Choose where to place your ships, by typing the start and end coordinate of each ship.\n");
+                printf("Choose where to place your ships, by typing the start coordinate and the direction, length of your ship.\n");
+                printf("  e.g. 'A1 2s' a ship at coordinate a1 with length 2 and facing southwards\n");
                 /* scan coordinate and direction, where ship should be placed */
                 if ((status = scan_coordinate(&x, &y, nx, ny)) < 0 || (direction = scan_direction(&length)) < 0) {
                         if (status == BUFFER_ERROR || direction == BUFFER_ERROR) {
                                 printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
                                 return BUFFER_ERROR;
+                        }
+                        if (status == EXIT) {
+                                return EXIT;
                         }
                         flush_buff();
                         printField = FALSE;
@@ -418,7 +425,7 @@ int choose_ships(play_fields_t *fld)
                                         break;
                                 default:
                                         printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
-                                        return INPUT_ERROR;
+                                        return UNKNOWN_ERROR;
                         }
                         /* check if the ship is in the field */
                         if (0 > y_h || y_h >= ny || 0 > x_h || x_h >= nx) {
@@ -458,7 +465,7 @@ int choose_ships(play_fields_t *fld)
                                         break;
                                 default:
                                         printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
-                                        return INPUT_ERROR;
+                                        return UNKNOWN_ERROR;
                         }
                 }
                 /* decrement the number of length-long ships remaining */
@@ -467,25 +474,21 @@ int choose_ships(play_fields_t *fld)
         return SUCCESS;
 }
 
-void bot_choose_ships(play_fields_t *fld)
+void auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *nShipsRemaining)
 {
-        /* copies of the struct values */
-        const int nx = fld->nx;
-        const int ny = fld->ny;
-        shipstate_t **data_left = fld->data_left;
 
         int length;
         /* number of times the field was reset, because of ship-jamming */
         int numOfReTries = 0;
-        /* nShipsRemaining[i] is the number of i long ships left */
-        int nShipsRemaining[MAX_SHIP_LENGTH + 1];
+        /* nShipsRemaining_cpy[i] is the number of i long ships left */
+        int nShipsRemaining_cpy[MAX_SHIP_LENGTH + 1];
         /* using "nRemainingShips" as scratch space */
-        memcpy(nShipsRemaining, fld->nShipsRemaining_left, sizeof(nShipsRemaining));
+        memcpy(nShipsRemaining_cpy, nShipsRemaining, sizeof(nShipsRemaining_cpy));
 
         /* populate with ships - place longest ships first, while there still is enough room */
         for (length = MAX_SHIP_LENGTH; length >= MIN_SHIP_LENGTH; --length) {
                 int numOfTries = 0;
-                while (nShipsRemaining[length]) {
+                while (nShipsRemaining_cpy[length]) {
                         int i;
                         /* ships can only be set RIGHT (= 0) or DOWN (= 1) */
                         const direction_t direction = rand() % 2;
@@ -498,16 +501,16 @@ void bot_choose_ships(play_fields_t *fld)
                         if (numOfTries > 1000) {
                                 if (numOfReTries > 1000) {
                                         printf("\nNo legal postions for the bot's ships found.\n");
-                                        printf("Increase the value of x or y coordinate, so that there is eough room for the ships.\n\n");
+                                        printf("Increase the value of x or y coordinate, so that there is enough room for the ships.\n\n");
                                         exit(INPUT_ERROR);
                                 }
                                 /* reset variables */
                                 length = MAX_SHIP_LENGTH + 1;
-                                memcpy(nShipsRemaining, fld->nShipsRemaining_left, sizeof(nShipsRemaining));
+                                memcpy(nShipsRemaining_cpy, nShipsRemaining, sizeof(nShipsRemaining_cpy));
                                 for (i = 0; i < nx; ++i) {
                                         int j;
                                         for (j = 0; j < nx; ++j) {
-                                                data_left[i][j] = NONE;
+                                                data[i][j] = NONE;
                                         }
                                 }
                                 ++numOfReTries;
@@ -530,7 +533,7 @@ void bot_choose_ships(play_fields_t *fld)
                                         int k;
                                         for (k = -1; k <= 1 && is_free; ++k) {
                                                 /* first check if the point is within the field (0 <= point < size) and then whether the the point is occupied */
-                                                if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && is_unhit(data_left[y_h + k][x_h + j])) {
+                                                if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && is_unhit(data[y_h + k][x_h + j])) {
                                                         is_free = FALSE;
                                                 }
                                         }
@@ -543,14 +546,14 @@ void bot_choose_ships(play_fields_t *fld)
                                 /* ships can only be RIGHT (= 0) or DOWN (= 1) */
                                 if (direction == DOWN) {
                                         /* direction = DOWN */
-                                        data_left[y + i][x] = UNHIT_VERT;
+                                        data[y + i][x] = UNHIT_VERT;
                                 } else {
                                         /* direction = RIGHT */
-                                        data_left[y][x + i] = UNHIT_HORIZ;
+                                        data[y][x + i] = UNHIT_HORIZ;
                                 }
                         }
                         /* decrements the number of ships left of the length "length" */
-                        --nShipsRemaining[length];
+                        --nShipsRemaining_cpy[length];
                 }
         }
 }
@@ -603,7 +606,6 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], int x, i
                         battle_field[i][x] = SUNK_VERT;
                 }
                 --nShipsRemaining[i - y];
-                putchar('Y');
                 return TRUE;
         } else {
                 printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
@@ -611,7 +613,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], int x, i
         }
 }
 
-void player_shoot(play_fields_t *fld)
+int player_shoot(play_fields_t *fld)
 {
         const int nx = fld->nx;
         const int ny = fld->ny;
@@ -622,9 +624,15 @@ void player_shoot(play_fields_t *fld)
         int status;
 
         printf("Type the coordinates, where you want to shoot at.\n");
-        while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || has_been_shot(data_left[y][x]))  {
+        while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || (status == SUCCESS && has_been_shot(data_left[y][x])))  {
                 flush_buff();
                 printf("Error: Retype the coordinates, where you want to shoot at.\n");
+        }
+        if(status == BUFFER_ERROR) {
+                return BUFFER_ERROR;
+        }
+        if(status == EXIT) {
+                return EXIT;
         }
 
         switch (data_left[y][x]) {
@@ -641,13 +649,136 @@ void player_shoot(play_fields_t *fld)
                         break;
                 default:
                         printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
+                        return UNKNOWN_ERROR;
+        }
+        return SUCCESS;
+}
+
+void bot_shoot(play_fields_t *fld, int hit_rate)
+{
+#if 0
+        static int x_curr = -1;
+        static int y_curr = -1;
+#endif
+        const int nx = fld->nx;
+        const int ny = fld->ny;
+        shipstate_t **data_right = fld->data_right;
+        int *nShipsRemaining_right = fld->nShipsRemaining_right;
+
+        int x, y;
+
+        /* determine whether to hit a ship */
+        int hitship = !(rand() % hit_rate);
+
+#if 0
+        if (x_curr >= 0 && y_curr >= 0) {
+                x = x_curr;
+                y = y_curr;
+        } else {
+#endif
+                do {
+                        x = rand() % nx;
+                        y = rand() % ny;
+                } while (hitship ? !(is_unhit(data_right[y][x])) : (data_right[y][x] != NONE));
+#if 0
+        }
+#endif
+
+        switch (data_right[y][x]) {
+                case NONE:
+                        data_right[y][x] = SPLASH;
+                        break;
+                case UNHIT_VERT:
+                        data_right[y][x] = HIT_VERT;
+                        test_ship_status(data_right, nShipsRemaining_right, x, y, nx, ny);
+                        break;
+                case UNHIT_HORIZ:
+                        data_right[y][x] = HIT_HORIZ;
+                        test_ship_status(data_right, nShipsRemaining_right, x, y, nx, ny);
+                        break;
+                default:
+                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                         return;
         }
+        printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
+
+#if 0
+        if (is_hit(data_right[y][x])) {
+                x_copy = x_curr;
+                y_copy = y_curr;
+                if (x_copy >= 0 && y_copy >= 0) {
+                        /* check if which direction the previously hit boxes are */
+                        if (is_hit(data_right[y][x + 1]) {
+                                --x_copy;
+                        } else if (is_hit(data_right[y][x + 1]) {
+                                ++x_copy;
+                        } else if (is_hit(data_right[y + 1][x]) {
+                                --y_copy;
+                        } else if (is_hit(data_right[y - 1][x]) {
+                                ++y_copy;
+                        } else {
+                                /* no boxes have been previously hit, so either x or y is incremented or decremented */
+                                rand() % 2 ? (rand() % 2 ? ++x_copy : --x_copy) : (rand() % 2 ? ++y_copy : --y_copy);
+                        }
+                        if (x_copy == -1 || has_been_shot(data_right[y_copy][x_copy])) {
+                                do {
+                                        ++x_copy;
+                                } while (is_hit(data_right[y_copy][x_copy]);
+                        }
+                        if (y_copy == -1) {
+                                do {
+                                        ++y_copy;
+                                } while (is_hit(data_right[y_copy][x_copy]);
+                        }
+                        if (x_copy == nx) {
+                                do {
+                                        --x_copy;
+                                } while (is_hit(data_right[y_copy][x_copy]);
+                        }
+                        if (y_copy == ny) {
+                                do {
+                                        --y_copy;
+                                } while (is_hit(data_right[y_copy][x_copy]);
+                        }
+                } else {
+                        /* in case this is the first part of ship that has been shot go in a random direction*/
+                        rand() % 2 ? (x_curr = x + (rand() % 2 ? 1 : -1)) : y_curr = (y + (rand() % 2 ? 1 : -1));
+                        /* change direction in case of being over the edge */
+                        if (x_curr == -1) {
+                                x_curr += 2;
+                        }
+                        if (y_curr == -1) {
+                                y_curr += 2;
+                        }
+                        if (x_curr == nx) {
+                                x_curr -= 2;
+                        }
+                        if (y_curr == ny) {
+                                y_curr -= 2;
+                        }
+                }
+        } else if (x_curr >= 0 && y_curr >= 0) {
+                if (is_sunk(data_right[y][x])) {
+                        x_curr = y_curr = -1;
+                }
+        }
+#endif
+}
+
+int has_somemone_won(int *nShipsRemaining)
+{
+        int i;
+        for (i = 0; i <= MAX_SHIP_LENGTH; ++i) {
+                if (nShipsRemaining[i] != 0)
+                        return 0;
+        }
+        return 1;
 }
 
 int main(int argc, char *argv[])
 {
-        int i;
+        int i, status, auto_choose = FALSE, difficulty = 5;
+        int nShipsTotal[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
         /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
         play_fields_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, NULL, NULL};
 
@@ -659,7 +790,18 @@ int main(int argc, char *argv[])
                 if ('-' == argv[i][0] && '-' != argv[i][1] ) {
                         const char *opt = &argv[i][1];
                         /* printf("process opt: %s\n", argv[i]); */
-                        if (strncmp(opt, "n=", 2) == 0) {
+                        if (strncmp(opt, "a", 2) == 0) {
+                                auto_choose = TRUE;
+                        } else if (strncmp(opt, "d=", 2) == 0) {
+                                char *end;
+                                long l;
+                                l = strtol(opt + 2, &end, 10);
+                                if (end == opt + 2 || *end || l < 1) {
+                                        printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
+                                        return INPUT_ERROR;
+                                }
+                                difficulty = (int)l;
+                        } else if (strncmp(opt, "n=", 2) == 0) {
                                 char *end;
                                 long l;
                                 l = strtol(opt + 2, &end, 10);
@@ -690,6 +832,8 @@ int main(int argc, char *argv[])
                         } else if (opt[0] == 'h') {
                                 printf("\nUsage: %s [OPTION]...\n", argv[0]);
                                 printf("\nOptions:\n");
+                                printf(" -a     player's ships are automatically chosen\n");
+                                printf(" -d=<n> sets the difficulty of the bot with 1 as <n> being extremely difficult and a large number <n> being easy\n");
                                 printf(" -n=<n> sets the battle-field width and height to <n>\n");
                                 printf(" -x=<n> sets the battle-field width to <n>\n");
                                 printf(" -y=<n> sets the battle-field height to <n>\n");
@@ -705,15 +849,61 @@ int main(int argc, char *argv[])
         field.data_left = alloc_field(field.nx, field.ny);
         field.data_right = alloc_field(field.nx, field.ny);
 
-        bot_choose_ships(&field);
-#ifndef SKIP_SHIP_CHOICE
-        choose_ships(&field);
-#endif
-
-        for (i = 0; i < 6; ++i) {
-                print_field(&field);
-                player_shoot(&field);
+        /* bot's automatic ship choice */
+        auto_choose_ships(field.nx, field.ny, field.data_left, field.nShipsRemaining_left);
+        /* manual or automatic ship choice for the player */
+        if (auto_choose) {
+                auto_choose_ships(field.nx, field.ny, field.data_right, field.nShipsRemaining_right);
+        } else {
+                status = choose_ships(&field);
+                if (status == EXIT) {
+                        free_field(&field);
+                        return SUCCESS;
+                }
+                if (status < 0) {
+                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
+                        free_field(&field);
+                        return status;
+                }
         }
+
+        while (1) {
+                print_field(&field);
+                status = player_shoot(&field);
+                if (status == EXIT) {
+                        break;
+                }
+                if (status < 0) {
+                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
+                        free_field(&field);
+                        return status;
+                }
+                if (has_somemone_won(field.nShipsRemaining_left)) {
+                        print_field(&field);
+                        printf("/-------------------\\\n");
+                        printf("| PLAYER has won!!! |\n");
+                        printf("\\-------------------/\n");
+                        break;
+                }
+                bot_shoot(&field, difficulty);
+                if (has_somemone_won(field.nShipsRemaining_right)) {
+                        print_field(&field);
+                        printf("/----------------\\\n");
+                        printf("| BOT has won!!! |\n");
+                        printf("\\----------------/\n");
+                        break;
+                }
+        }
+
+        printf("\nPlayer's ships:\n");
+        for (i = MIN_SHIP_LENGTH; i <= MAX_SHIP_LENGTH; ++i) {
+                printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_right[i], nShipsTotal[i], i);
+        }
+        printf("\nBot's ships:\n");
+        for (i = MIN_SHIP_LENGTH; i <= MAX_SHIP_LENGTH; ++i) {
+                printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_left[i], nShipsTotal[i], i);
+        }
+
         free_field(&field);
 
         return SUCCESS;
