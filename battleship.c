@@ -12,6 +12,7 @@
 #define MAX_WIDTH 99
 #define MAX_HEIGHT MAX_WIDTH
 
+#define SUCCESS_ENDL 1
 #define SUCCESS 0
 #define INPUT_ERROR -1
 #define BUFFER_ERROR -2
@@ -155,38 +156,75 @@ void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field)
 }
 
 /* prints both entire battleship-fields */
-void print_field(play_fields_t *fld)
+void print_field(play_fields_t *fld, int print_vertical)
 {
         /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
         shipstate_t **data_left = fld->data_left;
         shipstate_t **data_right = fld->data_right;
+        const char bot_title[] = "BOT's ships";
+        const char player_title[] = "PLAYER's ships";
+        const int nCharsX = 4 * nx + 3;
 
-        int row;
-
-        /* top row:   | A | B |...          | A | B |... */
-        print_top_row(nx);
-        print_gap();
-        print_top_row(nx);
-        printf("\n");
-        for (row = 0; row < ny; ++row) {
+        if (print_vertical) {
+                int row;
+                int players_field;
+                for (players_field = 0; players_field <= 1; ++players_field) {
+                        /* title: e.g.:     BOT's ships     */
+                        if (!players_field) {
+                                printf("\n%*s%*s\n", (nCharsX + (int)strlen(bot_title)) / 2, bot_title, nCharsX - (nCharsX + (int)strlen(bot_title)) / 2, "");
+                        } else {
+                                printf("%*s%*s\n", (nCharsX + (int)strlen(player_title)) / 2, player_title, nCharsX - (nCharsX + (int)strlen(player_title)) / 2, "");
+                        }
+                        /* top row:   | A | B |...*/
+                        print_top_row(nx);
+                        printf("\n");
+                        for (row = 0; row < ny; ++row) {
+                                /* horizontal line: --+---+---+...*/
+                                print_hline(nx);
+                                printf("\n");
+                                /* other rows:   <row>|~~~|XXX|...*/
+                                if (!players_field) {
+                                print_row(data_left[row], nx, row + 1, 0);
+                                } else {
+                                        print_row(data_right[row], nx, row + 1, 0);
+                                }
+                                printf("\n");
+                        }
+                        /* horizontal line: --+---+---+...*/
+                        print_hline(nx);
+                        printf("\n\n");
+                }
+        } else {
+                int row;
+                /* title: e.g.:     BOT's ships     */
+                printf("\n%*s%*s", (nCharsX + (int)strlen(bot_title)) / 2, bot_title, nCharsX - (nCharsX + (int)strlen(bot_title)) / 2, "");
+                print_gap();
+                printf("%*s%*s\n", (nCharsX + (int)strlen(player_title)) / 2, player_title, nCharsX - (nCharsX + (int)strlen(player_title)) / 2, "");
+                /* top row:   | A | B |...          | A | B |... */
+                print_top_row(nx);
+                print_gap();
+                print_top_row(nx);
+                printf("\n");
+                for (row = 0; row < ny; ++row) {
+                        /* horizontal line: --+---+---+...        --+---+---+... */
+                        print_hline(nx);
+                        print_gap();
+                        print_hline(nx);
+                        printf("\n");
+                        /* other rows:   <row>|~~~|XXX|...          |   |XXX|... */
+                        print_row(data_left[row], nx, row + 1, 0);
+                        print_gap();
+                        print_row(data_right[row], nx, row + 1, 0);
+                        printf("\n");
+                }
                 /* horizontal line: --+---+---+...        --+---+---+... */
                 print_hline(nx);
                 print_gap();
                 print_hline(nx);
-                printf("\n");
-                /* other rows:   <row>|~~~|XXX|...          |   |XXX|... */
-                print_row(data_left[row], nx, row + 1, 0);
-                print_gap();
-                print_row(data_right[row], nx, row + 1, 0);
-                printf("\n");
+                printf("\n\n");
         }
-        /* horizontal line: --+---+---+...        --+---+---+... */
-        print_hline(nx);
-        print_gap();
-        print_hline(nx);
-        printf("\n");
 }
 
 int flush_buff()
@@ -233,6 +271,9 @@ int scan_coordinate(int *x, int *y, int nx, int ny)
         } else if (c == '/') {
                 return EXIT;
         } else {
+                if (c != '\n') {
+                        flush_buff();
+                }
                 return INPUT_ERROR;
         }
         while (!isspace(c = toupper(getchar())) && c != EOF) {
@@ -253,6 +294,7 @@ int scan_coordinate(int *x, int *y, int nx, int ny)
                                         ++mode;
                                         break;
                                 default:
+                                        flush_buff();
                                         return INPUT_ERROR;
                         }
                 } else if (isalpha(c)) {
@@ -272,9 +314,11 @@ int scan_coordinate(int *x, int *y, int nx, int ny)
                                         ++mode;
                                         break;
                                 default:
+                                        flush_buff();
                                         return INPUT_ERROR;
                         }
                 } else {
+                        flush_buff();
                         return INPUT_ERROR;
                 }
         }
@@ -285,11 +329,14 @@ int scan_coordinate(int *x, int *y, int nx, int ny)
 
         /* makes sure x_hold, y_hold are within the field */
         if (0 >= x_hold || x_hold > nx || 0 >= y_hold || y_hold > ny) {
+                if (c != '\n') {
+                        flush_buff();
+                }
                 return INPUT_ERROR;
         }
         *x = x_hold - 1;
         *y = y_hold - 1;
-        return SUCCESS;
+        return (c == '\n') ? SUCCESS_ENDL : SUCCESS;
 }
 
 /* returns direction passes length on through the pointer or returns negative number in case of error */
@@ -309,6 +356,9 @@ direction_t scan_direction(int *length)
                 if (isdigit(c)) {
                         length_hold = c - '0';
                         if (length_hold < MIN_SHIP_LENGTH || MAX_SHIP_LENGTH < length_hold) {
+                                if (c != '\n') {
+                                        flush_buff();
+                                }
                                 return INPUT_ERROR;
                         }
                 } else {
@@ -325,13 +375,17 @@ direction_t scan_direction(int *length)
                                 case 'U': case 'N': case '^':
                                         direction = UP;
                                         break;
+                                case '\n':
+                                        return INPUT_ERROR;
                                 default:
+                                        flush_buff();
                                         return INPUT_ERROR;
                         }
                 }
         }
 
         if (direction == -1 || length_hold == -1) {
+                flush_buff();
                 return INPUT_ERROR;
         }
         *length = length_hold;
@@ -339,7 +393,7 @@ direction_t scan_direction(int *length)
         return direction;
 }
 
-int choose_ships(play_fields_t *fld)
+int choose_ships(play_fields_t *fld, int print_vertical)
 {
         /* copies of the struct values */
         const int nx = fld->nx;
@@ -370,7 +424,7 @@ int choose_ships(play_fields_t *fld)
                         }
                 }
                 if (printField) {
-                        print_field(fld);
+                        print_field(fld, print_vertical);
                         printf("You have ");
                         for (i = MAX_SHIP_LENGTH; i >= MIN_SHIP_LENGTH; --i) {
                                 if (nShipsRemaining[i]) {
@@ -392,7 +446,6 @@ int choose_ships(play_fields_t *fld)
                         if (status == EXIT) {
                                 return EXIT;
                         }
-                        flush_buff();
                         printField = FALSE;
                         continue;
                 }
@@ -624,8 +677,10 @@ int player_shoot(play_fields_t *fld)
         int status;
 
         printf("Type the coordinates, where you want to shoot at.\n");
-        while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || (status == SUCCESS && has_been_shot(data_left[y][x])))  {
-                flush_buff();
+        while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(data_left[y][x])))  {
+                if (status == SUCCESS) {
+                        flush_buff();
+                }
                 printf("Error: Retype the coordinates, where you want to shoot at.\n");
         }
         if(status == BUFFER_ERROR) {
@@ -777,7 +832,7 @@ int has_somemone_won(int *nShipsRemaining)
 
 int main(int argc, char *argv[])
 {
-        int i, status, auto_choose = FALSE, difficulty = 5;
+        int i, status, print_vertical = FALSE, auto_choose = FALSE, difficulty = 5;
         int nShipsTotal[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
         /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
         play_fields_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, NULL, NULL};
@@ -790,7 +845,7 @@ int main(int argc, char *argv[])
                 if ('-' == argv[i][0] && '-' != argv[i][1] ) {
                         const char *opt = &argv[i][1];
                         /* printf("process opt: %s\n", argv[i]); */
-                        if (strncmp(opt, "a", 2) == 0) {
+                        if (strcmp(opt, "a") == 0) {
                                 auto_choose = TRUE;
                         } else if (strncmp(opt, "d=", 2) == 0) {
                                 char *end;
@@ -829,6 +884,8 @@ int main(int argc, char *argv[])
                                         return INPUT_ERROR;
                                 }
                                 field.ny = (int)l;
+                        } else if (strcmp(opt, "v") == 0) {
+                                print_vertical = TRUE;
                         } else if (opt[0] == 'h') {
                                 printf("\nUsage: %s [OPTION]...\n", argv[0]);
                                 printf("\nOptions:\n");
@@ -837,6 +894,7 @@ int main(int argc, char *argv[])
                                 printf(" -n=<n> sets the battle-field width and height to <n>\n");
                                 printf(" -x=<n> sets the battle-field width to <n>\n");
                                 printf(" -y=<n> sets the battle-field height to <n>\n");
+                                printf(" -v     prints the fields above eachother\n");
                                 printf("(-h)    shows this help\n\n");
                                 return SUCCESS;
                         } else {
@@ -855,7 +913,7 @@ int main(int argc, char *argv[])
         if (auto_choose) {
                 auto_choose_ships(field.nx, field.ny, field.data_right, field.nShipsRemaining_right);
         } else {
-                status = choose_ships(&field);
+                status = choose_ships(&field, print_vertical);
                 if (status == EXIT) {
                         free_field(&field);
                         return SUCCESS;
@@ -868,7 +926,7 @@ int main(int argc, char *argv[])
         }
 
         while (1) {
-                print_field(&field);
+                print_field(&field, print_vertical);
                 status = player_shoot(&field);
                 if (status == EXIT) {
                         break;
@@ -879,7 +937,7 @@ int main(int argc, char *argv[])
                         return status;
                 }
                 if (has_somemone_won(field.nShipsRemaining_left)) {
-                        print_field(&field);
+                        print_field(&field, print_vertical);
                         printf("/-------------------\\\n");
                         printf("| PLAYER has won!!! |\n");
                         printf("\\-------------------/\n");
@@ -887,7 +945,7 @@ int main(int argc, char *argv[])
                 }
                 bot_shoot(&field, difficulty);
                 if (has_somemone_won(field.nShipsRemaining_right)) {
-                        print_field(&field);
+                        print_field(&field, print_vertical);
                         printf("/----------------\\\n");
                         printf("| BOT has won!!! |\n");
                         printf("\\----------------/\n");
