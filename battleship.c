@@ -12,13 +12,6 @@
 #define MAX_WIDTH 99
 #define MAX_HEIGHT MAX_WIDTH
 
-#define SUCCESS_ENDL 1
-#define SUCCESS 0
-#define INPUT_ERROR -1
-#define BUFFER_ERROR -2
-#define EXIT -3
-#define UNKNOWN_ERROR -4
-
 #define TRUE 1
 #define FALSE 0
 
@@ -47,6 +40,15 @@ static const char *const rowFormats[] =
         "---|",         /* 6: horizontal, sunken ship */
         "||||"          /* 7: vertical, sunken ship */
 };
+
+typedef enum {
+        UNKNOWN_ERROR = -4,
+        EXIT = -3,
+        BUFFER_ERROR = -2,
+        INPUT_ERROR = -1,
+        SUCCESS = 0,
+        SUCCESS_ENDL = 1
+} status_t;
 
 typedef enum {
         NONE = 0,       /* 0: unhit - water */
@@ -104,7 +106,6 @@ static shipstate_t ** alloc_field(int nx, int ny)
                 array2d[i] = slabs;
                 slabs += nx;
         }
-
         return array2d;
 }
 
@@ -230,11 +231,15 @@ void print_field(play_fields_t *fld, int print_vertical)
         }
 }
 
-int flush_buff()
+status_t flush_buff()
 {
         int c;
         while ((c = getchar()) != '\n' && c != EOF) {}
-        return (c == EOF) ? BUFFER_ERROR : SUCCESS;
+        if (c == EOF) {
+                printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
+                return BUFFER_ERROR;
+        }
+        return SUCCESS;
 }
 
 /* e.g.: stdin: "11e" --> *x = 4, *y = 10
@@ -244,7 +249,7 @@ int flush_buff()
  * <digit> --> '0'|'1'|...|'9'
  * <letter> --> 'A'|'B'|...|'Z'|'a'|'b'|...|'z'
  */
-int scan_coordinate(int *x, int *y, int nx, int ny)
+status_t scan_coordinate(int *x, int *y, int nx, int ny)
 {
         /* mode: tracks which stage of parsing the function is in:
          * 0 : numbers first: 1st digit
@@ -396,7 +401,7 @@ direction_t scan_direction(int *length)
         return direction;
 }
 
-int choose_ships(play_fields_t *fld, int print_vertical)
+status_t choose_ships(play_fields_t *fld, int print_vertical)
 {
         /* copies of the struct values */
         const int nx = fld->nx;
@@ -411,7 +416,8 @@ int choose_ships(play_fields_t *fld, int print_vertical)
 
         /* loop-condition checks whether there is still ships, that have not been set */
         while (1) {
-                int i, x, y, status, length;
+                int i, x, y, length;
+                status_t status;
                 direction_t direction;
                 /* variable containing the whether there are any ships in the way */
                 int is_free = TRUE;
@@ -452,7 +458,7 @@ int choose_ships(play_fields_t *fld, int print_vertical)
                 } else if (status == EXIT) {
                         return EXIT;
                 }
-                if (status == BUFFER_ERROR || direction == BUFFER_ERROR) {
+                if (status == BUFFER_ERROR || direction == BUFFER_ERROR_DIRECTION) {
                         printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
                         return BUFFER_ERROR;
                 }
@@ -537,7 +543,7 @@ int choose_ships(play_fields_t *fld, int print_vertical)
         return SUCCESS;
 }
 
-void auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *nShipsRemaining)
+status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *nShipsRemaining)
 {
 
         int length;
@@ -565,7 +571,7 @@ void auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *nShi
                                 if (numOfReTries > 1000) {
                                         printf("\nNo legal postions for the bot's ships found.\n");
                                         printf("Increase the value of x or y coordinate, so that there is enough room for the ships.\n\n");
-                                        exit(INPUT_ERROR);
+                                        return INPUT_ERROR;
                                 }
                                 /* reset variables */
                                 length = MAX_SHIP_LENGTH + 1;
@@ -619,6 +625,7 @@ void auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *nShi
                         --nShipsRemaining_cpy[length];
                 }
         }
+        return SUCCESS;
 }
 
 
@@ -676,7 +683,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], int x, i
         }
 }
 
-int player_shoot(play_fields_t *fld)
+status_t player_shoot(play_fields_t *fld)
 {
         const int nx = fld->nx;
         const int ny = fld->ny;
@@ -684,7 +691,7 @@ int player_shoot(play_fields_t *fld)
         int *nShipsRemaining_left = fld->nShipsRemaining_left;
 
         int x, y;
-        int status;
+        status_t status;
 
         printf("Type the coordinates, where you want to shoot at.\n");
         while ((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(data_left[y][x])))  {
@@ -832,17 +839,18 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
 
 int has_somemone_won(int *nShipsRemaining)
 {
-        int i;
-        for (i = 0; i <= MAX_SHIP_LENGTH; ++i) {
-                if (nShipsRemaining[i] != 0)
-                        return 0;
+        int shipLen;
+        for (shipLen = MIN_SHIP_LENGTH; shipLen <= MAX_SHIP_LENGTH; ++shipLen) {
+                if (nShipsRemaining[shipLen] != 0)
+                        return FALSE;
         }
-        return 1;
+        return TRUE;
 }
 
 int main(int argc, char *argv[])
 {
-        int i, status, print_vertical = FALSE, auto_choose = FALSE, difficulty = 5;
+        int i, print_vertical = FALSE, auto_choose = FALSE, difficulty = 5;
+        status_t status;
         int nShipsTotal[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
         /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
         play_fields_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, NULL, NULL};
@@ -949,10 +957,14 @@ int main(int argc, char *argv[])
         field.data_right = alloc_field(field.nx, field.ny);
 
         /* bot's automatic ship choice */
-        auto_choose_ships(field.nx, field.ny, field.data_left, field.nShipsRemaining_left);
+        if (auto_choose_ships(field.nx, field.ny, field.data_left, field.nShipsRemaining_left) == INPUT_ERROR) {
+                return INPUT_ERROR;
+        }
         /* manual or automatic ship choice for the player */
         if (auto_choose) {
-                auto_choose_ships(field.nx, field.ny, field.data_right, field.nShipsRemaining_right);
+                if (auto_choose_ships(field.nx, field.ny, field.data_right, field.nShipsRemaining_right) == INPUT_ERROR) {
+                        return INPUT_ERROR;
+                }
         } else {
                 status = choose_ships(&field, print_vertical);
                 if (status == EXIT) {
