@@ -22,20 +22,13 @@
 #define TRUE 1
 #define FALSE 0
 
-/* number of ships (value) of each length (postion in array) */
+/* number of ships (value) of each length (position in array) */
 #define NUM_SHIPS_INIT {0, 0, 4, 3, 2, 1}
-#define MIN_SHIP_LENGTH 2
+#define MIN_SHIP_LENGTH 1
 #define MAX_SHIP_LENGTH 5
 
 /* The gap between left and right fields */
 #define print_gap() (printf("        "))
-#define is_unhit(box) ((box) == UNHIT_HORIZ || (box) == UNHIT_VERT)
-#define is_hit(box) ((box) == HIT_HORIZ || (box) == HIT_VERT)
-#define is_sunk(box) ((box) == SUNK_HORIZ || (box) == SUNK_VERT)
-#define is_ship(box) (is_unhit(box) || is_hit(box) || is_sunk(box))
-#define has_been_shot(box) ((box) == SPLASH || is_hit(box) || is_sunk(box))
-#define is_horiz(box) ((box) == UNHIT_HORIZ || (box) == HIT_HORIZ || (box) == SUNK_HORIZ)
-#define is_vert(box) ((box) == UNHIT_VERT || (box) == HIT_VERT || (box) == SUNK_VERT)
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
@@ -47,8 +40,8 @@ static const char *const rowFormats[] =
 {
         "   |",         /* 0: unhit - water */
         "~~~|",         /* 1: hit water */
-        "===|",         /* 2: horizontal, unhit ship on the right field*/
-        "III|",         /* 3: vertical, unhit ship on the right field*/
+        "===|",         /* 2: horizontal, unhit ship on the right field */
+        "III|",         /* 3: vertical, unhit ship on the right field */
         "hhh|",         /* 4: horizontal, hit ship */
         "vvv|",         /* 5: vertical, hit ship */
         "---|",         /* 6: horizontal, sunken ship */
@@ -58,13 +51,23 @@ static const char *const rowFormats[] =
 typedef enum {
         NONE = 0,       /* 0: unhit - water */
         SPLASH,         /* 1: hit water */
-        UNHIT_HORIZ,    /* 2: horizontal, unhit ship on the right field*/
-        UNHIT_VERT,     /* 3: vertical, unhit ship on the right field*/
+        UNHIT_HORIZ,    /* 2: horizontal, unhit ship on the right field */
+        UNHIT_VERT,     /* 3: vertical, unhit ship on the right field */
         HIT_HORIZ,      /* 4: horizontal, hit ship */
         HIT_VERT,       /* 5: vertical, hit ship */
         SUNK_HORIZ,     /* 6: horizontal, sunken ship */
         SUNK_VERT       /* 7: vertical, sunken ship */
 } shipstate_t;
+
+/* Convenience macros for handling hit/unhit status */
+#define is_unhit(box) ((box) == UNHIT_HORIZ || (box) == UNHIT_VERT)
+#define is_hit(box) ((box) == HIT_HORIZ || (box) == HIT_VERT)
+#define is_sunk(box) ((box) == SUNK_HORIZ || (box) == SUNK_VERT)
+#define is_ship(box) (is_unhit(box) || is_hit(box) || is_sunk(box))
+#define has_been_shot(box) ((box) == SPLASH || is_hit(box) || is_sunk(box))
+#define is_horiz(box) ((box) == UNHIT_HORIZ || (box) == HIT_HORIZ || (box) == SUNK_HORIZ)
+#define is_vert(box) ((box) == UNHIT_VERT || (box) == HIT_VERT || (box) == SUNK_VERT)
+
 
 typedef enum {
         BUFFER_ERROR_DIRECTION = BUFFER_ERROR,
@@ -140,12 +143,12 @@ void print_top_row(int nx)
 /* prints row including the numbering at the beginning of the line ( 1|~~~|XXX|~~~|...) */
 void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field)
 {
-        int i;
+        int coli;
 
         printf("%2i|", row_num);
 
-        for (i = 0; i < nx; ++i) {
-                int state = row[i];
+        for (coli = 0; coli < nx; ++coli) {
+                int state = row[coli];
                 if (is_left_field && is_unhit(state)) {
 #ifndef SHOW_BOTS_SHIP
                        state = NONE; /* keep hidden */
@@ -168,9 +171,9 @@ void print_field(play_fields_t *fld, int print_vertical)
         const int nCharsX = 4 * nx + 3;
 
         if (print_vertical) {
-                int row;
                 int players_field;
                 for (players_field = 0; players_field <= 1; ++players_field) {
+                        int row;
                         /* title: e.g.:     BOT's ships     */
                         if (!players_field) {
                                 printf("\n%*s%*s\n", (nCharsX + (int)strlen(bot_title)) / 2, bot_title, nCharsX - (nCharsX + (int)strlen(bot_title)) / 2, "");
@@ -438,18 +441,25 @@ int choose_ships(play_fields_t *fld, int print_vertical)
                 printf("Choose where to place your ships, by typing the start coordinate and the direction, length of your ship.\n");
                 printf("  e.g. 'A1 2s' a ship at coordinate a1 with length 2 and facing southwards\n");
                 /* scan coordinate and direction, where ship should be placed */
-                if ((status = scan_coordinate(&x, &y, nx, ny)) < 0 || (direction = scan_direction(&length)) < 0) {
-                        if (status == BUFFER_ERROR || direction == BUFFER_ERROR) {
-                                printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
-                                return BUFFER_ERROR;
-                        }
-                        if (status == EXIT) {
-                                return EXIT;
-                        }
+
+                status = scan_coordinate(&x, &y, nx, ny);
+                if (status == SUCCESS_ENDL) {
+                        direction = RIGHT;
+                        length = 1;
+                } else if (status == SUCCESS) {
+                        direction = scan_direction(&length);
+                        flush_buff();
+                } else if (status == EXIT) {
+                        return EXIT;
+                }
+                if (status == BUFFER_ERROR || direction == BUFFER_ERROR) {
+                        printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
+                        return BUFFER_ERROR;
+                }
+                if (status < 0 || direction < 0) {
                         printField = FALSE;
                         continue;
                 }
-                flush_buff();
 
                 /* check if there are ships of the selected length left */
                 if (length > MAX_SHIP_LENGTH || nShipsRemaining[length] <= 0) {
@@ -677,16 +687,16 @@ int player_shoot(play_fields_t *fld)
         int status;
 
         printf("Type the coordinates, where you want to shoot at.\n");
-        while((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(data_left[y][x])))  {
+        while ((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(data_left[y][x])))  {
                 if (status == SUCCESS) {
                         flush_buff();
                 }
                 printf("Error: Retype the coordinates, where you want to shoot at.\n");
         }
-        if(status == BUFFER_ERROR) {
+        if (status == BUFFER_ERROR) {
                 return BUFFER_ERROR;
         }
-        if(status == EXIT) {
+        if (status == EXIT) {
                 return EXIT;
         }
 
@@ -848,42 +858,69 @@ int main(int argc, char *argv[])
                         if (strcmp(opt, "a") == 0) {
                                 auto_choose = TRUE;
                         } else if (strncmp(opt, "d=", 2) == 0) {
-                                char *end;
-                                long l;
-                                l = strtol(opt + 2, &end, 10);
-                                if (end == opt + 2 || *end || l < 1) {
-                                        printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
+                                char *endp;
+                                long ival;
+                                ival = strtol(opt + 2, &endp, 10);
+                                if (endp == opt + 2 || *endp || ival < 1) {
+                                        printf("Invalid input: number in argument: \"-%s\"!\n", opt);
                                         return INPUT_ERROR;
                                 }
-                                difficulty = (int)l;
+                                difficulty = (int)ival;
+                        } else if (strncmp(opt, "s=", 2) == 0) {
+                                char *endp;
+                                int shipLen;
+                                long ival;
+                                const char *p = (opt + 2);
+
+                                /* Ignore optional opening delimiters */
+                                if (*p == '{' || *p == '(' || *p == '[') ++p;
+                                for (shipLen = MIN_SHIP_LENGTH; *p != '\0' && shipLen <= MAX_SHIP_LENGTH; ++shipLen) {
+                                        ival = strtol(p, &endp, 10);
+                                        if (endp == p || ival < 0) {
+                                                printf("Invalid input: number in argument: \"-%s\"!\n", opt);
+                                                return INPUT_ERROR;
+                                        }
+                                        nShipsTotal[shipLen] = field.nShipsRemaining_right[shipLen] = field.nShipsRemaining_left[shipLen] = (int)ival;
+                                        p = endp;
+
+                                        if (*p == '}' || *p == ')' || *p == ']') {
+                                                ++p;
+                                                break;
+                                        }
+                                        while (isspace(*p) || *p == ',' || *p == ';') ++p;
+                                }
+                                if (*p != '\0') {
+                                        printf("Invalid input format in argument: \"-%s\"!\n", opt);
+                                        return INPUT_ERROR;
+                                }
                         } else if (strncmp(opt, "n=", 2) == 0) {
-                                char *end;
-                                long l;
-                                l = strtol(opt + 2, &end, 10);
-                                if (end == opt + 2 || *end || l < MAX_SHIP_LENGTH || l > min(MAX_WIDTH, MAX_HEIGHT)) {
+                                char *endp;
+                                long ival;
+                                ival = strtol(opt + 2, &endp, 10);
+                                if (endp == opt + 2 || *endp || ival < MAX_SHIP_LENGTH || ival > min(MAX_WIDTH, MAX_HEIGHT)) {
                                         printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
                                         return INPUT_ERROR;
                                 }
-                                field.nx = (int)l;
-                                field.ny = (int)l;
+                                field.nx = (int)ival;
+                                field.ny = (int)ival;
                         } else if (strncmp(opt, "x=", 2) == 0) {
-                                char *end;
-                                long l;
-                                l = strtol(opt + 2, &end, 10);
-                                if (end == opt + 2 || *end || l < MAX_SHIP_LENGTH || l > MAX_WIDTH) {
+                                char *endp;
+                                long ival;
+                                ival = strtol(opt + 2, &endp, 10);
+                                if (endp == opt + 2 || *endp || ival < MAX_SHIP_LENGTH || ival > MAX_WIDTH) {
                                         printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
                                         return INPUT_ERROR;
                                 }
-                                field.nx = (int)l;
+                                field.nx = (int)ival;
                         } else if (strncmp(opt, "y=", 2) == 0) {
-                                char *end;
-                                long l;
-                                l = strtol(opt + 2, &end, 10);
-                                if (end == opt + 2 || *end || l < MAX_SHIP_LENGTH || l > MAX_HEIGHT) {
+                                char *endp;
+                                long ival;
+                                ival = strtol(opt + 2, &endp, 10);
+                                if (endp == opt + 2 || *endp || ival < MAX_SHIP_LENGTH || ival > MAX_HEIGHT) {
                                         printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
                                         return INPUT_ERROR;
                                 }
-                                field.ny = (int)l;
+                                field.ny = (int)ival;
                         } else if (strcmp(opt, "v") == 0) {
                                 print_vertical = TRUE;
                         } else if (opt[0] == 'h') {
@@ -891,11 +928,15 @@ int main(int argc, char *argv[])
                                 printf("\nOptions:\n");
                                 printf(" -a     player's ships are automatically chosen\n");
                                 printf(" -d=<n> sets the difficulty of the bot with 1 as <n> being extremely difficult and a large number <n> being easy\n");
+                                printf(" -s=<array> sets the number of ships <n> of the length corresponding to the position of <n> in <array>\n");
+                                printf("    <array> = [ \"{\" | \"[\" | \"(\" ] , [ <n> , { \",\" ,  <n> } ] , [ \"}\" | \"]\" | \")\" ] ;\n");
                                 printf(" -n=<n> sets the battle-field width and height to <n>\n");
                                 printf(" -x=<n> sets the battle-field width to <n>\n");
                                 printf(" -y=<n> sets the battle-field height to <n>\n");
                                 printf(" -v     prints the fields above eachother\n");
                                 printf("(-h)    shows this help\n\n");
+                                printf("General Help on using the program:\n");
+                                printf("    use '/' to exit the program at any time\n\n");
                                 return SUCCESS;
                         } else {
                                 printf("Unknown argument: \"%s\"!\n", argv[i]);
