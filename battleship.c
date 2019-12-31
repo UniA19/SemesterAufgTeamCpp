@@ -1183,7 +1183,7 @@ int main(int argc, char *argv[])
                         print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
                         if (field.print_utf) {
                                 if (field.print_color) {
-                                        printf("\033[32;1m╭───────────────────╮\n");
+                                        printf("\033[32;1;5m╭───────────────────╮\n");
                                         printf("│ PLAYER has won!!! │\n");
                                         printf("╰───────────────────╯\033[0m\n");
                                 } else {
@@ -1193,7 +1193,7 @@ int main(int argc, char *argv[])
                                 }
 
                         } else if (field.print_color) {
-                                printf("\033[32;1m/-------------------\\\n");
+                                printf("\033[32;1;5m/-------------------\\\n");
                                 printf("| PLAYER has won!!! |\n");
                                 printf("\\-------------------/\033[0m\n");
                         } else {
@@ -1208,7 +1208,7 @@ int main(int argc, char *argv[])
                         print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
                         if (field.print_utf) {
                                 if (field.print_color) {
-                                        printf("\033[31;1m╭────────────────╮\n");
+                                        printf("\033[31;1;5m╭────────────────╮\n");
                                         printf("│ BOT has won!!! │\n");
                                         printf("╰────────────────╯\033[0m");
                                 } else {
@@ -1218,7 +1218,7 @@ int main(int argc, char *argv[])
                                 }
 
                         } else if (field.print_color) {
-                                printf("\033[31;1m/----------------\\\n");
+                                printf("\033[31;1;5m/----------------\\\n");
                                 printf("| BOT has won!!! |\n");
                                 printf("\\----------------/\033[0m\n");
 
