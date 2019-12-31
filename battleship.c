@@ -104,6 +104,19 @@ static const char *const rowFormats_color[] =
         "\033[35;1mX|X\033[0m|",        /* 8: vertical, sunken ship */
 };
 
+static const char *const rowFormats_color_utf[] =
+{
+        "   │",                         /* 0: unhit - water */
+        "\033[34;1m≈≈≈\033[0m│",        /* 1: hit water */
+        "\033[32;1m═●═\033[0m│",   /* 2: horizontal, unhit ship on the right field */
+        "\033[32;1m│●│\033[0m│",        /* 3: vertical, unhit ship on the right field */
+        "\033[31;1m ╳ \033[0m│",   /* 4: hit ship (on left side) */
+        "\033[31;1m═╳═\033[0m│",        /* 5: horizontal, hit ship */
+        "\033[31;1m│╳│\033[0m│",        /* 6: vertical, hit ship */
+        "\033[35;1m╳═╳\033[0m│",   /* 7: horizontal, sunken ship */
+        "\033[35;1m╳│╳\033[0m│",        /* 8: vertical, sunken ship */
+};
+
 typedef enum {
         UNKNOWN_ERROR = -5,
         ALLOC_ERROR = -4,
@@ -262,10 +275,16 @@ void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field, 
                 if (print_color) {
                         if (invert == coli) {
                                 printf("\033[7m");
-                                printf(rowFormats_color[state]);
-                                printf("\033[27m");
+                        }
+
+                        if (print_utf) {
+                                printf(rowFormats_color_utf[state]);
                         } else {
                                 printf(rowFormats_color[state]);
+                        }
+
+                        if (invert == coli) {
+                                printf("\033[27m");
                         }
                 } else if (print_utf) {
                         printf(rowFormats_utf[state]);
@@ -990,16 +1009,8 @@ int main(int argc, char *argv[])
                         if (strcmp(opt, "a") == 0) {
                                 auto_choose = TRUE;
                         } else if (strcmp(opt, "c") == 0) {
-                                if (field.print_utf) {
-                                        printf("You cannot use -u (UTF-8) and -c (Color) at the same time\n");
-                                        return INPUT_ERROR;
-                                }
                                 field.print_color = TRUE;
-                        }  else if (strcmp(opt, "u") == 0) {
-                                if (field.print_color) {
-                                        printf("You cannot use -u (UTF-8) and -c (Color) at the same time\n");
-                                        return INPUT_ERROR;
-                                }
+                        } else if (strcmp(opt, "u") == 0) {
                                 field.print_utf = TRUE;
                         } else if (strncmp(opt, "d=", 2) == 0) {
                                 char *endp;
@@ -1015,6 +1026,11 @@ int main(int argc, char *argv[])
                                 int shipLen;
                                 long ival;
                                 const char *p = (opt + 2);
+
+                                /* Reset all ship lengths to 0 */
+                                for (shipLen = 0; shipLen <= MAX_SHIP_LENGTH; ++shipLen) {
+                                        nShipsTotal[shipLen] = field.nShipsRemaining_right[shipLen] = field.nShipsRemaining_left[shipLen] = 0;
+                                }
 
                                 /* Ignore optional opening delimiters */
                                 if (*p == '{' || *p == '(' || *p == '[') ++p;
@@ -1064,7 +1080,7 @@ int main(int argc, char *argv[])
                                 char *endp;
                                 long ival;
                                 ival = strtol(opt + 2, &endp, 10);
-                                if (endp == opt + 2 || *endp || ival < MAX_SHIP_LENGTH || ival > min(MAX_WIDTH, MAX_HEIGHT)) {
+                                if (endp == opt + 2 || *endp || ival > min(MAX_WIDTH, MAX_HEIGHT)) {
                                         printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
                                         return INPUT_ERROR;
                                 }
@@ -1074,7 +1090,7 @@ int main(int argc, char *argv[])
                                 char *endp;
                                 long ival;
                                 ival = strtol(opt + 2, &endp, 10);
-                                if (endp == opt + 2 || *endp || ival < MAX_SHIP_LENGTH || ival > MAX_WIDTH) {
+                                if (endp == opt + 2 || *endp || ival > MAX_WIDTH) {
                                         printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
                                         return INPUT_ERROR;
                                 }
@@ -1083,7 +1099,7 @@ int main(int argc, char *argv[])
                                 char *endp;
                                 long ival;
                                 ival = strtol(opt + 2, &endp, 10);
-                                if (endp == opt + 2 || *endp || ival < MAX_SHIP_LENGTH || ival > MAX_HEIGHT) {
+                                if (endp == opt + 2 || *endp || ival > MAX_HEIGHT) {
                                         printf("Invalid input: number in argument: \"%s\"!\n", argv[i]);
                                         return INPUT_ERROR;
                                 }
@@ -1096,7 +1112,6 @@ int main(int argc, char *argv[])
                                 printf(" -a     player's ships are automatically chosen\n");
                                 printf(" -c     print fields using ansi colors (note not every console supports this) \n");
                                 printf(" -u     prints fields using UTF-8 characters (note not every console supports this)\n");
-                                printf("    Note: -c and -u are incompatible\n");
                                 printf(" -d=<n> sets the difficulty of the bot with <n> being chance of the bot hitting in percent\n");
                                 printf(" -s=<array> sets the number of ships <n> of the length corresponding to the position of <n> in <array>\n");
                                 printf("    <array> = [ \"{\" | \"[\" | \"(\" ] , [ <n> , { \",\" ,  <n> } ] , [ \"}\" | \"]\" | \")\" ] ;\n");
@@ -1166,17 +1181,52 @@ int main(int argc, char *argv[])
                 }
                 if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength)) {
                         print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
-                        printf("/-------------------\\\n");
-                        printf("| PLAYER has won!!! |\n");
-                        printf("\\-------------------/\n");
+                        if (field.print_utf) {
+                                if (field.print_color) {
+                                        printf("\033[32;1m╭───────────────────╮\n");
+                                        printf("│ PLAYER has won!!! │\n");
+                                        printf("╰───────────────────╯\033[0m\n");
+                                } else {
+                                        printf("╭───────────────────╮\n");
+                                        printf("│ PLAYER has won!!! │\n");
+                                        printf("╰───────────────────╯\n");
+                                }
+
+                        } else if (field.print_color) {
+                                printf("\033[32;1m/-------------------\\\n");
+                                printf("| PLAYER has won!!! |\n");
+                                printf("\\-------------------/\033[0m\n");
+                        } else {
+                                printf("/-------------------\\\n");
+                                printf("| PLAYER has won!!! |\n");
+                                printf("\\-------------------/\n");
+                        }
                         break;
                 }
                 bot_shoot(&field, difficulty, &invertPlayerX, &invertPlayerY);
                 if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) {
                         print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
-                        printf("/----------------\\\n");
-                        printf("| BOT has won!!! |\n");
-                        printf("\\----------------/\n");
+                        if (field.print_utf) {
+                                if (field.print_color) {
+                                        printf("\033[31;1m╭────────────────╮\n");
+                                        printf("│ BOT has won!!! │\n");
+                                        printf("╰────────────────╯\033[0m");
+                                } else {
+                                        printf("╭────────────────╮\n");
+                                        printf("│ BOT has won!!! │\n");
+                                        printf("╰────────────────╯");
+                                }
+
+                        } else if (field.print_color) {
+                                printf("\033[31;1m/----------------\\\n");
+                                printf("| BOT has won!!! |\n");
+                                printf("\\----------------/\033[0m\n");
+
+                        } else {
+                                printf("/----------------\\\n");
+                                printf("| BOT has won!!! |\n");
+                                printf("\\----------------/\n");
+                        }
                         break;
                 }
         }
