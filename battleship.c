@@ -258,7 +258,7 @@ void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field, 
 {
         int coli;
 
-        printf("%2i│", row_num);
+        printf("%2i%s", row_num, (print_utf ? "│" : "|"));
 
         for (coli = 0; coli < nx; ++coli) {
                 shipstate_t state = row[coli];
