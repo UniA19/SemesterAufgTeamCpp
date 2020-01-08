@@ -33,15 +33,15 @@
 
 static const char *const rowFormats[] =
 {
-        "   |",                         /* 0: unhit - water */
-        "~~~|",        /* 1: hit water */
-        "=O=|",   /* 2: horizontal, unhit ship on the right field */
-        "|O||",        /* 3: vertical, unhit ship on the right field */
-        " X |",        /* 4: hit ship (on left side) */
-        "=X=|",   /* 5: horizontal, hit ship */
-        "|X||",        /* 6: vertical, hit ship */
-        "X=X|",   /* 7: horizontal, sunken ship */
-        "X|X|",        /* 8: vertical, sunken ship */
+        "   |",         /* 0: unhit - water */
+        "~~~|",         /* 1: hit water */
+        "=O=|",         /* 2: horizontal, unhit ship on the right field */
+        "|O||",         /* 3: vertical, unhit ship on the right field */
+        " X |",         /* 4: hit ship (on left side) */
+        "=X=|",         /* 5: horizontal, hit ship */
+        "|X||",         /* 6: vertical, hit ship */
+        "X=X|",         /* 7: horizontal, sunken ship */
+        "X|X|",         /* 8: vertical, sunken ship */
 };
 
 #if 0
@@ -95,12 +95,12 @@ static const char *const rowFormats_color[] =
 {
         "   |",                         /* 0: unhit - water */
         "\033[34;1m~~~\033[0m|",        /* 1: hit water */
-        "\033[32;1;53;4m O \033[0m|",   /* 2: horizontal, unhit ship on the right field */
+        "\033[32;1m=O=\033[0m|",        /* 2: horizontal, unhit ship on the right field */
         "\033[32;1m|O|\033[0m|",        /* 3: vertical, unhit ship on the right field */
         "\033[31;1m X \033[0m|",        /* 4: hit ship (on left side) */
-        "\033[31;1;53;4m X \033[0m|",   /* 5: horizontal, hit ship */
+        "\033[31;1m=X=\033[0m|",        /* 5: horizontal, hit ship */
         "\033[31;1m|X|\033[0m|",        /* 6: vertical, hit ship */
-        "\033[35;1;53;4mX X\033[0m|",   /* 7: horizontal, sunken ship */
+        "\033[35;1mX=X\033[0m|",        /* 7: horizontal, sunken ship */
         "\033[35;1mX|X\033[0m|",        /* 8: vertical, sunken ship */
 };
 
@@ -108,12 +108,12 @@ static const char *const rowFormats_color_utf[] =
 {
         "   │",                         /* 0: unhit - water */
         "\033[34;1m≈≈≈\033[0m│",        /* 1: hit water */
-        "\033[32;1m═●═\033[0m│",   /* 2: horizontal, unhit ship on the right field */
+        "\033[32;1m═●═\033[0m│",        /* 2: horizontal, unhit ship on the right field */
         "\033[32;1m│●│\033[0m│",        /* 3: vertical, unhit ship on the right field */
-        "\033[31;1m ╳ \033[0m│",   /* 4: hit ship (on left side) */
+        "\033[31;1m ╳ \033[0m│",        /* 4: hit ship (on left side) */
         "\033[31;1m═╳═\033[0m│",        /* 5: horizontal, hit ship */
         "\033[31;1m│╳│\033[0m│",        /* 6: vertical, hit ship */
-        "\033[35;1m╳═╳\033[0m│",   /* 7: horizontal, sunken ship */
+        "\033[35;1m╳═╳\033[0m│",        /* 7: horizontal, sunken ship */
         "\033[35;1m╳│╳\033[0m│",        /* 8: vertical, sunken ship */
 };
 
@@ -1170,6 +1170,7 @@ int main(int argc, char *argv[])
 
         while (1) {
                 print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
+                invertBotX = invertBotY = -1;
                 status = player_shoot(&field, &invertBotX, &invertBotY);
                 if (status == EXIT) {
                         break;
@@ -1180,6 +1181,7 @@ int main(int argc, char *argv[])
                         return status;
                 }
                 if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength)) {
+                        invertPlayerX = invertPlayerY = -1;
                         print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
                         if (field.print_utf) {
                                 if (field.print_color) {
