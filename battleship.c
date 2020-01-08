@@ -31,6 +31,40 @@
 #undef SHOW_BOTS_SHIP
 
 
+typedef enum {
+        NONE = 0,               /* 0:   unhit - water */
+        SPLASH,                 /* 1:   hit water */
+        UNHIT_HORIZ,            /* 2:   horizontal */
+        UNHIT_VERT,             /* 3:   vertical */
+        HIT,                    /* 4:   hit ship (on left side, only used for printing) */
+        HIT_HORIZ,              /* 5:   horizontal, hit ship */
+        HIT_VERT,               /* 6:   vertical, hit ship */
+        SUNK_HORIZ,             /* 7:   horizontal, sunken ship */
+        SUNK_VERT,              /* 8:   vertical, sunken ship */
+        NONE_INVERT,            /* 9: inverted, unhit - water */
+        SPLASH_INVERT,          /* 10: inverted, hit water */
+        UNHIT_HORIZ_INVERT,     /* 11: inverted, horizontal */
+        UNHIT_VERT_INVERT,      /* 12: inverted, vertical */
+        HIT_INVERT,             /* 13: inverted, hit ship (on left side, only used for printing) */
+        HIT_HORIZ_INVERT,       /* 14: inverted, horizontal, hit ship */
+        HIT_VERT_INVERT,        /* 15: inverted, vertical, hit ship */
+        SUNK_HORIZ_INVERT,      /* 16: inverted, horizontal, sunken ship */
+        SUNK_VERT_INVERT        /* 17: inverted, vertical, sunken ship */
+} shipstate_t;
+
+/* Convenience macros for handling hit/unhit status */
+#define is_unhit(box) ((box) == UNHIT_HORIZ || (box) == UNHIT_VERT || (box) == UNHIT_HORIZ_INVERT || (box) == UNHIT_VERT_INVERT)
+#define is_hit(box) ((box) == HIT || (box) == HIT_HORIZ || (box) == HIT_VERT || (box) == HIT_HORIZ_INVERT || (box) == HIT_VERT_INVERT)
+#define is_sunk(box) ((box) == SUNK_HORIZ || (box) == SUNK_VERT || (box) == SUNK_HORIZ_INVERT || (box) == SUNK_VERT_INVERT)
+#define is_ship(box) (is_unhit(box) || is_hit(box) || is_sunk(box))
+#define has_been_shot(box) ((box) == SPLASH || (box) == SPLASH_INVERT || is_hit(box) || is_sunk(box))
+#define is_horiz(box) ((box) == UNHIT_HORIZ || (box) == HIT_HORIZ || (box) == SUNK_HORIZ || (box) == UNHIT_HORIZ_INVERT || (box) == HIT_HORIZ_INVERT || (box) == SUNK_HORIZ_INVERT)
+#define is_vert(box) ((box) == UNHIT_VERT || (box) == HIT_VERT || (box) == SUNK_VERT || (box) == UNHIT_VERT_INVERT || (box) == HIT_VERT_INVERT || (box) == SUNK_VERT_INVERT)
+#define INVERT_DIFF (NONE_INVERT)
+#define is_invert(box) ((box) == NONE_INVERT || (box) == SPLASH_INVERT || (box) == UNHIT_HORIZ_INVERT || (box) == UNHIT_VERT_INVERT || (box) == HIT_INVERT || (box) == HIT_HORIZ_INVERT || (box) == HIT_VERT_INVERT || (box) == SUNK_HORIZ_INVERT || (box) == SUNK_VERT_INVERT)
+#define invert(box) (is_invert(box) ? (box - INVERT_DIFF) : (box + INVERT_DIFF))
+#define remove_invert(box) ((box) % INVERT_DIFF)
+
 static const char *const rowFormats[] =
 {
         "   |",         /* 0: unhit - water */
@@ -82,6 +116,15 @@ static const char *const rowFormats_utf[] =
         "│╳││",         /* 6: vertical, hit ship */
         "╳═╳│",         /* 7: horizontal, sunken ship */
         "╳│╳│",         /* 8: vertical, sunken ship */
+        "   │",         /* 9: unhit - water NOTE: after this point the fields are inverted, which doesn't work without ansi coloring so there is no change here */
+        "≈≈≈│",         /* 10: hit water */
+        "═●═│",         /* 11: horizontal, unhit ship on the right field */
+        "│●││",         /* 12: vertical, unhit ship on the right field */
+        " ╳ │",         /* 13: hit ship (on left side) */
+        "═╳═│",         /* 14: horizontal, hit ship */
+        "│╳││",         /* 15: vertical, hit ship */
+        "╳═╳│",         /* 16: horizontal, sunken ship */
+        "╳│╳│",         /* 17: vertical, sunken ship */
 };
 
 /* ansi-colors:
@@ -102,6 +145,15 @@ static const char *const rowFormats_color[] =
         "\033[31;1m|X|\033[0m|",        /* 6: vertical, hit ship */
         "\033[35;1mX=X\033[0m|",        /* 7: horizontal, sunken ship */
         "\033[35;1mX|X\033[0m|",        /* 8: vertical, sunken ship */
+        "   |",                         /* 9: inverted, unhit - water */
+        "\033[34;1;7m~~~\033[0m|",      /* 10: inverted, hit water */
+        "\033[32;1;7m=O=\033[0m|",      /* 11: inverted, horizontal, unhit ship on the right field */
+        "\033[32;1;7m|O|\033[0m|",      /* 12: inverted, vertical, unhit ship on the right field */
+        "\033[31;1;7m X \033[0m|",      /* 13: inverted, hit ship (on left side) */
+        "\033[31;1;7m=X=\033[0m|",      /* 14: inverted, horizontal, hit ship */
+        "\033[31;1;7m|X|\033[0m|",      /* 15: inverted, vertical, hit ship */
+        "\033[35;1;7mX=X\033[0m|",      /* 16: inverted, horizontal, sunken ship */
+        "\033[35;1;7mX|X\033[0m|",      /* 17: inverted, vertical, sunken ship */
 };
 
 static const char *const rowFormats_color_utf[] =
@@ -115,6 +167,15 @@ static const char *const rowFormats_color_utf[] =
         "\033[31;1m│╳│\033[0m│",        /* 6: vertical, hit ship */
         "\033[35;1m╳═╳\033[0m│",        /* 7: horizontal, sunken ship */
         "\033[35;1m╳│╳\033[0m│",        /* 8: vertical, sunken ship */
+        "   │",                         /* 9: inverted, unhit - water */
+        "\033[34;1;7m≈≈≈\033[0m│",      /* 10: inverted, hit water */
+        "\033[32;1;7m═●═\033[0m│",      /* 11: inverted, horizontal, unhit ship on the right field */
+        "\033[32;1;7m│●│\033[0m│",      /* 12: inverted, vertical, unhit ship on the right field */
+        "\033[31;1;7m ╳ \033[0m│",      /* 13: inverted, hit ship (on left side) */
+        "\033[31;1;7m═╳═\033[0m│",      /* 14: inverted, horizontal, hit ship */
+        "\033[31;1;7m│╳│\033[0m│",      /* 15: inverted, vertical, hit ship */
+        "\033[35;1;7m╳═╳\033[0m│",      /* 16: inverted, horizontal, sunken ship */
+        "\033[35;1;7m╳│╳\033[0m│",      /* 17: inverted, vertical, sunken ship */
 };
 
 typedef enum {
@@ -127,27 +188,6 @@ typedef enum {
         SUCCESS_ENDL = 1,
         SUCCESS_HIT = 2
 } status_t;
-
-typedef enum {
-        NONE = 0,       /* 0: unhit - water */
-        SPLASH,         /* 1: hit water */
-        UNHIT_HORIZ,    /* 2: horizontal */
-        UNHIT_VERT,     /* 3: vertical */
-        HIT,            /* 4: hit ship (on left side, only used for printing) */
-        HIT_HORIZ,      /* 5: horizontal, hit ship */
-        HIT_VERT,       /* 6: vertical, hit ship */
-        SUNK_HORIZ,     /* 7: horizontal, sunken ship */
-        SUNK_VERT       /* 8: vertical, sunken ship */
-} shipstate_t;
-
-/* Convenience macros for handling hit/unhit status */
-#define is_unhit(box) ((box) == UNHIT_HORIZ || (box) == UNHIT_VERT)
-#define is_hit(box) ((box) == HIT_HORIZ || (box) == HIT_VERT)
-#define is_sunk(box) ((box) == SUNK_HORIZ || (box) == SUNK_VERT)
-#define is_ship(box) (is_unhit(box) || is_hit(box) || is_sunk(box))
-#define has_been_shot(box) ((box) == SPLASH || is_hit(box) || is_sunk(box))
-#define is_horiz(box) ((box) == UNHIT_HORIZ || (box) == HIT_HORIZ || (box) == SUNK_HORIZ)
-#define is_vert(box) ((box) == UNHIT_VERT || (box) == HIT_VERT || (box) == SUNK_VERT)
 
 
 typedef enum {
@@ -259,7 +299,7 @@ void print_top_row(int nx, int print_utf)
 }
 
 /* prints row including the numbering at the beginning of the line ( 1|~~~|XXX|~~~|...) */
-void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field, int print_color, int print_utf, int invert)
+void print_row(shipstate_t row[], int nx, int row_num, int is_left_field, int print_color, int print_utf)
 {
         int coli;
 
@@ -273,34 +313,28 @@ void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field, 
                                 state = NONE; /* keep hidden */
                         }
                         if (is_hit(state)) {
-                                state = HIT;
+                                state = is_invert(state) ? HIT_INVERT : HIT;
                         }
                 }
 #endif
                 if (print_color) {
-                        if (invert == coli) {
-                                printf("\033[7m");
-                        }
-
                         if (print_utf) {
                                 printf(rowFormats_color_utf[state]);
                         } else {
                                 printf(rowFormats_color[state]);
-                        }
-
-                        if (invert == coli) {
-                                printf("\033[27m");
                         }
                 } else if (print_utf) {
                         printf(rowFormats_utf[state]);
                 } else {
                         printf(rowFormats[state]);
                 }
+
+                row[coli] = remove_invert(row[coli]);
         }
 }
 
 /* prints both entire battleship-fields */
-void print_field(play_fields_t *fld, point_t invBot, point_t invPlayer)
+void print_field(play_fields_t *fld)
 {
         /* copies of the struct values */
         const int nx = fld->nx;
@@ -333,9 +367,9 @@ void print_field(play_fields_t *fld, point_t invBot, point_t invPlayer)
                                 printf("\n");
                                 /* other rows:   <row>|~~~|XXX|...*/
                                 if (!players_field) {
-                                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf, (invBot.y == row) ? invBot.x : -1);
+                                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf);
                                 } else {
-                                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf, (invPlayer.y == row) ? invPlayer.x : -1);
+                                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf);
                                 }
                                 printf("\n");
                         }
@@ -361,9 +395,9 @@ void print_field(play_fields_t *fld, point_t invBot, point_t invPlayer)
                         print_hline(nx, print_utf);
                         printf("\n");
                         /* other rows:   <row>|~~~|XXX|...          |   |XXX|... */
-                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf, (invBot.y == row) ? invBot.x : -1);
+                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf);
                         print_gap();
-                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf, (invPlayer.y == row) ? invPlayer.x : -1);
+                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf);
                         printf("\n");
                 }
                 /* horizontal line: --+---+---+...        --+---+---+... */
@@ -577,8 +611,7 @@ status_t choose_ships(play_fields_t *fld)
                         }
                 }
                 if (printField) {
-                        point_t p = {-1, -1};
-                        print_field(fld, p, p);
+                        print_field(fld);
                         printf("You have ");
                         for (i = maxShipLength; i >= MIN_SHIP_LENGTH; --i) {
                                 if (nShipsRemaining[i]) {
@@ -808,7 +841,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], point_t 
                 }
                 /* iterate over the length of the ship set all of the hit boxes to sunk */
                 for (i = x; ((i < nx) && is_ship(battle_field[y][i])); ++i) {
-                        battle_field[y][i] = SUNK_HORIZ;
+                        battle_field[y][i] += SUNK_HORIZ - HIT_HORIZ;
                 }
                 --nShipsRemaining[i - x];
                 return TRUE;
@@ -829,7 +862,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], point_t 
                 }
                 /* iterate over the length of the ship set all of the hit boxes to sunk */
                 for (i = y; ((i < ny) && is_ship(battle_field[i][x])); ++i) {
-                        battle_field[i][x] = SUNK_VERT;
+                        battle_field[i][x] += SUNK_VERT - HIT_VERT;
                 }
                 --nShipsRemaining[i - y];
                 return TRUE;
@@ -839,7 +872,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], point_t 
         }
 }
 
-status_t player_shoot(play_fields_t *fld, point_t *invert)
+status_t player_shoot(play_fields_t *fld)
 {
         const int nx = fld->nx;
         const int ny = fld->ny;
@@ -847,6 +880,7 @@ status_t player_shoot(play_fields_t *fld, point_t *invert)
         int *nShipsRemaining_left = fld->nShipsRemaining_left;
 
         int x, y;
+        point_t point;
         status_t status;
 
         printf("Type the coordinates, where you want to shoot at.\n");
@@ -863,19 +897,19 @@ status_t player_shoot(play_fields_t *fld, point_t *invert)
                 return EXIT;
         }
 
-        invert->x = x;
-        invert->y = y;
+        point.x = x;
+        point.y = y;
         switch (data_left[y][x]) {
                 case NONE:
-                        data_left[y][x] = SPLASH;
+                        data_left[y][x] = SPLASH_INVERT;
                         return SUCCESS;
                 case UNHIT_VERT:
-                        data_left[y][x] = HIT_VERT;
-                        test_ship_status(data_left, nShipsRemaining_left, *invert, nx, ny);
+                        data_left[y][x] = HIT_VERT_INVERT;
+                        test_ship_status(data_left, nShipsRemaining_left, point, nx, ny);
                         return SUCCESS_HIT;
                 case UNHIT_HORIZ:
-                        data_left[y][x] = HIT_HORIZ;
-                        test_ship_status(data_left, nShipsRemaining_left, *invert, nx, ny);
+                        data_left[y][x] = HIT_HORIZ_INVERT;
+                        test_ship_status(data_left, nShipsRemaining_left, point, nx, ny);
                         return SUCCESS_HIT;
                 default:
                         printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
@@ -884,7 +918,7 @@ status_t player_shoot(play_fields_t *fld, point_t *invert)
         return SUCCESS;
 }
 
-void bot_shoot(play_fields_t *fld, int hit_rate, point_t *invert)
+void bot_shoot(play_fields_t *fld, int hit_rate)
 {
 #if 0
         static int x_curr = -1;
@@ -896,38 +930,40 @@ void bot_shoot(play_fields_t *fld, int hit_rate, point_t *invert)
         int *nShipsRemaining_right = fld->nShipsRemaining_right;
 
         int x, y, hitship;
+        point_t point;
 
         do {
                 /* determine whether to hit a ship */
                 hitship = (rand() % 100) < hit_rate;
 
-        #if 0
+#if 0
                 if (x_curr >= 0 && y_curr >= 0) {
                         x = x_curr;
                         y = y_curr;
                 } else {
-        #endif
+#endif
                 do {
                         x = rand() % nx;
                         y = rand() % ny;
                 } while (hitship ? !(is_unhit(data_right[y][x])) : (data_right[y][x] != NONE));
-        #if 0
+#if 0
                 }
-        #endif
+#endif
 
-                invert->x = x;
-                invert->y = y;
+
+                point.x = x;
+                point.y = y;
                 switch (data_right[y][x]) {
                         case NONE:
-                                data_right[y][x] = SPLASH;
+                                data_right[y][x] = SPLASH_INVERT;
                                 break;
                         case UNHIT_VERT:
-                                data_right[y][x] = HIT_VERT;
-                                test_ship_status(data_right, nShipsRemaining_right, *invert, nx, ny);
+                                data_right[y][x] = HIT_VERT_INVERT;
+                                test_ship_status(data_right, nShipsRemaining_right, point, nx, ny);
                                 break;
                         case UNHIT_HORIZ:
-                                data_right[y][x] = HIT_HORIZ;
-                                test_ship_status(data_right, nShipsRemaining_right, *invert, nx, ny);
+                                data_right[y][x] = HIT_HORIZ_INVERT;
+                                test_ship_status(data_right, nShipsRemaining_right, point, nx, ny);
                                 break;
                         default:
                                 printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
@@ -1003,7 +1039,6 @@ int main(int argc, char *argv[])
 {
         /* invert… descibes the coordinates, that should be inverted (last targeted) on the bot's field and on the player's field, when using -c (color-mode) */
         int i, auto_choose = FALSE, difficulty = 50;
-        point_t invertBot = {-1, -1}, invertPlayer = {-1, -1};
         status_t status;
         int nShipsTotal[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
         /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
@@ -1180,9 +1215,8 @@ int main(int argc, char *argv[])
 
         while (1) {
                 do {
-                        print_field(&field, invertBot, invertPlayer);
-                        invertBot.x = invertBot.y = -1;
-                        status = player_shoot(&field, &invertBot);
+                        print_field(&field);
+                        status = player_shoot(&field);
                         if (status == EXIT) {
                                 break;
                         }
@@ -1192,8 +1226,7 @@ int main(int argc, char *argv[])
                                 return status;
                         }
                         if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength)) {
-                                invertPlayer.x = invertPlayer.y = -1;
-                                print_field(&field, invertBot, invertPlayer);
+                                print_field(&field);
                                 if (field.print_utf) {
                                         if (field.print_color) {
                                                 printf("\033[32;1;5m╭───────────────────╮\n");
@@ -1216,13 +1249,12 @@ int main(int argc, char *argv[])
                                 }
                                 break;
                         }
-                } while (invertPlayer.x = invertPlayer.y = -1, status == SUCCESS_HIT);
+                } while (status == SUCCESS_HIT);
                 if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength) || status == EXIT) break;
 
-                invertPlayer.x = invertPlayer.y = -1;
-                bot_shoot(&field, difficulty, &invertPlayer);
+                bot_shoot(&field, difficulty);
                 if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) {
-                        print_field(&field, invertBot, invertPlayer);
+                        print_field(&field);
                         if (field.print_utf) {
                                 if (field.print_color) {
                                         printf("\033[31;1;5m╭────────────────╮\n");
