@@ -124,7 +124,8 @@ typedef enum {
         BUFFER_ERROR = -2,
         INPUT_ERROR = -1,
         SUCCESS = 0,
-        SUCCESS_ENDL = 1
+        SUCCESS_ENDL = 1,
+        SUCCESS_HIT = 2
 } status_t;
 
 typedef enum {
@@ -173,6 +174,10 @@ typedef struct {
         int print_vertical;
 } play_fields_t;
 
+typedef struct {
+        int x;
+        int y;
+} point_t;
 
 /* allocates one 2D-array for the battleship field */
 static shipstate_t ** alloc_field(int nx, int ny)
@@ -295,7 +300,7 @@ void print_row(const shipstate_t row[], int nx, int row_num, int is_left_field, 
 }
 
 /* prints both entire battleship-fields */
-void print_field(play_fields_t *fld, int invBotX, int invBotY, int invPlayerX, int invPlayerY)
+void print_field(play_fields_t *fld, point_t invBot, point_t invPlayer)
 {
         /* copies of the struct values */
         const int nx = fld->nx;
@@ -328,9 +333,9 @@ void print_field(play_fields_t *fld, int invBotX, int invBotY, int invPlayerX, i
                                 printf("\n");
                                 /* other rows:   <row>|~~~|XXX|...*/
                                 if (!players_field) {
-                                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf, (invBotY == row) ? invBotX : -1);
+                                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf, (invBot.y == row) ? invBot.x : -1);
                                 } else {
-                                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf, (invPlayerY == row) ? invPlayerX : -1);
+                                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf, (invPlayer.y == row) ? invPlayer.x : -1);
                                 }
                                 printf("\n");
                         }
@@ -356,9 +361,9 @@ void print_field(play_fields_t *fld, int invBotX, int invBotY, int invPlayerX, i
                         print_hline(nx, print_utf);
                         printf("\n");
                         /* other rows:   <row>|~~~|XXX|...          |   |XXX|... */
-                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf, (invBotY == row) ? invBotX : -1);
+                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf, (invBot.y == row) ? invBot.x : -1);
                         print_gap();
-                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf, (invPlayerY == row) ? invPlayerX : -1);
+                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf, (invPlayer.y == row) ? invPlayer.x : -1);
                         printf("\n");
                 }
                 /* horizontal line: --+---+---+...        --+---+---+... */
@@ -555,7 +560,7 @@ status_t choose_ships(play_fields_t *fld)
 
         /* loop-condition checks whether there is still ships, that have not been set */
         while (1) {
-                int i, x, y, length;
+                int x, y, i, length;
                 status_t status;
                 direction_t direction;
                 /* variable containing the whether there are any ships in the way */
@@ -572,7 +577,8 @@ status_t choose_ships(play_fields_t *fld)
                         }
                 }
                 if (printField) {
-                        print_field(fld, -1, -1, -1, -1);
+                        point_t p = {-1, -1};
+                        print_field(fld, p, p);
                         printf("You have ");
                         for (i = maxShipLength; i >= MIN_SHIP_LENGTH; --i) {
                                 if (nShipsRemaining[i]) {
@@ -767,9 +773,20 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
         return SUCCESS;
 }
 
-
-int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], int x, int y, int nx, int ny)
+int has_somemone_won(int *nShipsRemaining, int maxShipLength)
 {
+        int shipLen;
+        for (shipLen = MIN_SHIP_LENGTH; shipLen <= maxShipLength; ++shipLen) {
+                if (nShipsRemaining[shipLen] != 0)
+                        return FALSE;
+        }
+        return TRUE;
+}
+
+int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], point_t position, int nx, int ny)
+{
+        int x = position.x;
+        int y = position.y;
         if (x < 0 || x >= nx || y < 0 || y >= ny || !is_hit(battle_field[y][x])) {
                 printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
                 return -1;
@@ -822,7 +839,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], int x, i
         }
 }
 
-status_t player_shoot(play_fields_t *fld, int *invX, int *invY)
+status_t player_shoot(play_fields_t *fld, point_t *invert)
 {
         const int nx = fld->nx;
         const int ny = fld->ny;
@@ -846,28 +863,28 @@ status_t player_shoot(play_fields_t *fld, int *invX, int *invY)
                 return EXIT;
         }
 
+        invert->x = x;
+        invert->y = y;
         switch (data_left[y][x]) {
                 case NONE:
                         data_left[y][x] = SPLASH;
-                        break;
+                        return SUCCESS;
                 case UNHIT_VERT:
                         data_left[y][x] = HIT_VERT;
-                        test_ship_status(data_left, nShipsRemaining_left, x, y, nx, ny);
-                        break;
+                        test_ship_status(data_left, nShipsRemaining_left, *invert, nx, ny);
+                        return SUCCESS_HIT;
                 case UNHIT_HORIZ:
                         data_left[y][x] = HIT_HORIZ;
-                        test_ship_status(data_left, nShipsRemaining_left, x, y, nx, ny);
-                        break;
+                        test_ship_status(data_left, nShipsRemaining_left, *invert, nx, ny);
+                        return SUCCESS_HIT;
                 default:
                         printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                         return UNKNOWN_ERROR;
         }
-        *invX = x;
-        *invY = y;
         return SUCCESS;
 }
 
-void bot_shoot(play_fields_t *fld, int hit_rate, int *invX, int *invY)
+void bot_shoot(play_fields_t *fld, int hit_rate, point_t *invert)
 {
 #if 0
         static int x_curr = -1;
@@ -878,44 +895,46 @@ void bot_shoot(play_fields_t *fld, int hit_rate, int *invX, int *invY)
         shipstate_t **data_right = fld->data_right;
         int *nShipsRemaining_right = fld->nShipsRemaining_right;
 
-        int x, y;
+        int x, y, hitship;
 
-        /* determine whether to hit a ship */
-        int hitship = (rand() % 100) < hit_rate;
+        do {
+                /* determine whether to hit a ship */
+                hitship = (rand() % 100) < hit_rate;
 
-#if 0
-        if (x_curr >= 0 && y_curr >= 0) {
-                x = x_curr;
-                y = y_curr;
-        } else {
-#endif
+        #if 0
+                if (x_curr >= 0 && y_curr >= 0) {
+                        x = x_curr;
+                        y = y_curr;
+                } else {
+        #endif
                 do {
                         x = rand() % nx;
                         y = rand() % ny;
                 } while (hitship ? !(is_unhit(data_right[y][x])) : (data_right[y][x] != NONE));
-#if 0
-        }
-#endif
+        #if 0
+                }
+        #endif
 
-        switch (data_right[y][x]) {
-                case NONE:
-                        data_right[y][x] = SPLASH;
-                        break;
-                case UNHIT_VERT:
-                        data_right[y][x] = HIT_VERT;
-                        test_ship_status(data_right, nShipsRemaining_right, x, y, nx, ny);
-                        break;
-                case UNHIT_HORIZ:
-                        data_right[y][x] = HIT_HORIZ;
-                        test_ship_status(data_right, nShipsRemaining_right, x, y, nx, ny);
-                        break;
-                default:
-                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
-                        return;
-        }
-        printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
-        *invX = x;
-        *invY = y;
+                invert->x = x;
+                invert->y = y;
+                switch (data_right[y][x]) {
+                        case NONE:
+                                data_right[y][x] = SPLASH;
+                                break;
+                        case UNHIT_VERT:
+                                data_right[y][x] = HIT_VERT;
+                                test_ship_status(data_right, nShipsRemaining_right, *invert, nx, ny);
+                                break;
+                        case UNHIT_HORIZ:
+                                data_right[y][x] = HIT_HORIZ;
+                                test_ship_status(data_right, nShipsRemaining_right, *invert, nx, ny);
+                                break;
+                        default:
+                                printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
+                                return;
+                }
+                printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
+        } while (is_ship(data_right[y][x]) && !has_somemone_won(nShipsRemaining_right, fld->maxShipLength));
 
 #if 0
         if (is_hit(data_right[y][x])) {
@@ -980,20 +999,11 @@ void bot_shoot(play_fields_t *fld, int hit_rate, int *invX, int *invY)
 #endif
 }
 
-int has_somemone_won(int *nShipsRemaining, int maxShipLength)
-{
-        int shipLen;
-        for (shipLen = MIN_SHIP_LENGTH; shipLen <= maxShipLength; ++shipLen) {
-                if (nShipsRemaining[shipLen] != 0)
-                        return FALSE;
-        }
-        return TRUE;
-}
-
 int main(int argc, char *argv[])
 {
         /* invert… descibes the coordinates, that should be inverted (last targeted) on the bot's field and on the player's field, when using -c (color-mode) */
-        int i, auto_choose = FALSE, difficulty = 50, invertBotX = -1, invertBotY = -1, invertPlayerX = -1, invertPlayerY = -1;
+        int i, auto_choose = FALSE, difficulty = 50;
+        point_t invertBot = {-1, -1}, invertPlayer = {-1, -1};
         status_t status;
         int nShipsTotal[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
         /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
@@ -1169,45 +1179,50 @@ int main(int argc, char *argv[])
         }
 
         while (1) {
-                print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
-                invertBotX = invertBotY = -1;
-                status = player_shoot(&field, &invertBotX, &invertBotY);
-                if (status == EXIT) {
-                        break;
-                }
-                if (status < 0) {
-                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
-                        free_field(&field);
-                        return status;
-                }
-                if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength)) {
-                        invertPlayerX = invertPlayerY = -1;
-                        print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
-                        if (field.print_utf) {
-                                if (field.print_color) {
-                                        printf("\033[32;1;5m╭───────────────────╮\n");
-                                        printf("│ PLAYER has won!!! │\n");
-                                        printf("╰───────────────────╯\033[0m\n");
-                                } else {
-                                        printf("╭───────────────────╮\n");
-                                        printf("│ PLAYER has won!!! │\n");
-                                        printf("╰───────────────────╯\n");
-                                }
-
-                        } else if (field.print_color) {
-                                printf("\033[32;1;5m/-------------------\\\n");
-                                printf("| PLAYER has won!!! |\n");
-                                printf("\\-------------------/\033[0m\n");
-                        } else {
-                                printf("/-------------------\\\n");
-                                printf("| PLAYER has won!!! |\n");
-                                printf("\\-------------------/\n");
+                do {
+                        print_field(&field, invertBot, invertPlayer);
+                        invertBot.x = invertBot.y = -1;
+                        status = player_shoot(&field, &invertBot);
+                        if (status == EXIT) {
+                                break;
                         }
-                        break;
-                }
-                bot_shoot(&field, difficulty, &invertPlayerX, &invertPlayerY);
+                        if (status < 0) {
+                                printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
+                                free_field(&field);
+                                return status;
+                        }
+                        if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength)) {
+                                invertPlayer.x = invertPlayer.y = -1;
+                                print_field(&field, invertBot, invertPlayer);
+                                if (field.print_utf) {
+                                        if (field.print_color) {
+                                                printf("\033[32;1;5m╭───────────────────╮\n");
+                                                printf("│ PLAYER has won!!! │\n");
+                                                printf("╰───────────────────╯\033[0m\n");
+                                        } else {
+                                                printf("╭───────────────────╮\n");
+                                                printf("│ PLAYER has won!!! │\n");
+                                                printf("╰───────────────────╯\n");
+                                        }
+
+                                } else if (field.print_color) {
+                                        printf("\033[32;1;5m/-------------------\\\n");
+                                        printf("| PLAYER has won!!! |\n");
+                                        printf("\\-------------------/\033[0m\n");
+                                } else {
+                                        printf("/-------------------\\\n");
+                                        printf("| PLAYER has won!!! |\n");
+                                        printf("\\-------------------/\n");
+                                }
+                                break;
+                        }
+                } while (invertPlayer.x = invertPlayer.y = -1, status == SUCCESS_HIT);
+                if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength) || status == EXIT) break;
+
+                invertPlayer.x = invertPlayer.y = -1;
+                bot_shoot(&field, difficulty, &invertPlayer);
                 if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) {
-                        print_field(&field, invertBotX, invertBotY, invertPlayerX, invertPlayerY);
+                        print_field(&field, invertBot, invertPlayer);
                         if (field.print_utf) {
                                 if (field.print_color) {
                                         printf("\033[31;1;5m╭────────────────╮\n");
@@ -1231,6 +1246,7 @@ int main(int argc, char *argv[])
                         }
                         break;
                 }
+                if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) break;
         }
 
         printf("\nPlayer's ships:\n");
