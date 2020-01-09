@@ -501,7 +501,7 @@ direction_t scan_direction(int *length, int maxShipLength)
         for (i = 0; i < 2; ++i) {
                 c = toupper(getchar()); /* toupper removes case sensitivity */
                 if (c == EOF) {
-                        return BUFFER_ERROR;
+                        return BUFFER_ERROR_DIRECTION;
                 }
 
                 if (isdigit(c)) {
@@ -510,7 +510,7 @@ direction_t scan_direction(int *length, int maxShipLength)
                                 if (c != '\n') {
                                         flush_buff();
                                 }
-                                return INPUT_ERROR;
+                                return INPUT_ERROR_DIRECTION;
                         }
                 } else {
                         switch (c) {
@@ -527,17 +527,17 @@ direction_t scan_direction(int *length, int maxShipLength)
                                         direction = UP;
                                         break;
                                 case '\n':
-                                        return INPUT_ERROR;
+                                        return INPUT_ERROR_DIRECTION;
                                 default:
                                         flush_buff();
-                                        return INPUT_ERROR;
+                                        return INPUT_ERROR_DIRECTION;
                         }
                 }
         }
 
         if (direction == -1 || length_hold == -1) {
                 flush_buff();
-                return INPUT_ERROR;
+                return INPUT_ERROR_DIRECTION;
         }
         *length = length_hold;
 
@@ -594,22 +594,30 @@ status_t choose_ships(play_fields_t *fld)
                 /* scan coordinate and direction, where ship should be placed */
 
                 status = scan_coordinate(&x, &y, nx, ny);
-                if (status == SUCCESS_ENDL) {
-                        direction = RIGHT;
-                        length = 1;
-                } else if (status == SUCCESS) {
-                        direction = scan_direction(&length, maxShipLength);
-                        flush_buff();
-                } else if (status == EXIT) {
-                        return EXIT;
-                }
-                if (status == BUFFER_ERROR || direction == BUFFER_ERROR_DIRECTION) {
-                        printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
-                        return BUFFER_ERROR;
-                }
-                if (status < 0 || direction < 0) {
-                        printField = FALSE;
-                        continue;
+                switch (status) {
+                        case SUCCESS_ENDL:
+                                direction = RIGHT;
+                                length = 1;
+                                break;
+                        case SUCCESS:
+                                direction = scan_direction(&length, maxShipLength);
+                                if (direction == BUFFER_ERROR_DIRECTION) {
+                                        printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
+                                        return BUFFER_ERROR;
+                                } else if (direction == INPUT_ERROR_DIRECTION) {
+                                        printField = FALSE;
+                                        continue;
+                                }
+                                flush_buff();
+                                break;
+                        case EXIT:
+                                return EXIT;
+                        case BUFFER_ERROR:
+                                printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
+                                return BUFFER_ERROR;
+                        case INPUT_ERROR: default:
+                                printField = FALSE;
+                                continue;
                 }
 
                 /* check if there are ships of the selected length left */
