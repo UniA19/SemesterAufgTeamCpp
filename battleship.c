@@ -76,6 +76,15 @@ static const char *const rowFormats[] =
         "|X||",         /* 6: vertical, hit ship */
         "X=X|",         /* 7: horizontal, sunken ship */
         "X|X|",         /* 8: vertical, sunken ship */
+        "   |",         /* 9: unhit - water NOTE: after this point the fields are inverted, which doesn't work without ansi coloring so there is no change here */
+        "~~~|",         /* 10: hit water */
+        "=O=|",         /* 11: horizontal, unhit ship on the right field */
+        "|O||",         /* 12: vertical, unhit ship on the right field */
+        " X |",         /* 13: hit ship (on left side) */
+        "=X=|",         /* 14: horizontal, hit ship */
+        "|X||",         /* 15: vertical, hit ship */
+        "X=X|",         /* 16: horizontal, sunken ship */
+        "X|X|",         /* 17: vertical, sunken ship */
 };
 
 #if 0
@@ -89,19 +98,21 @@ static const char *const rowFormats[] =
         "|O||",         /* 5: vertical, unhit ship on the right field */
         "/o\\|",        /* 6: top end of vertical, unhit ship on the right field */
         "\\o/|",        /* 7: bottom end of vertical, unhit ship on the right field */
-        " X |",         /* 8: hit ship (on left side) */
-        "=X=|",         /* 9: horizontal, hit ship */
-        "<X=|",         /* 10: left end of horizontal, hit ship */
-        "=X>|",         /* 11: right end of horizontal, hit ship */
-        "|X||",         /* 12: vertical, hit ship */
-        "/X\\|",        /* 13: top end of vertical, hit ship */
-        "\\X/|",        /* 14: bottom end of vertical, hit ship */
-        "X+X|",         /* 15: horizontal, sunken ship */
+        "(O)|",         /* 8: unhit ship on the right field of the length 1 */
+        " X |",         /* 9: hit ship (on left side) */
+        "=X=|",         /* 10: horizontal, hit ship */
+        "<X=|",         /* 11: left end of horizontal, hit ship */
+        "=X>|",         /* 12: right end of horizontal, hit ship */
+        "|X||",         /* 13: vertical, hit ship */
+        "/X\\|",        /* 14: top end of vertical, hit ship */
+        "\\X/|",        /* 15: bottom end of vertical, hit ship */
+        "X+X|",         /* 16: horizontal, sunken ship */
         "<+X|",         /* 17: left end of horizontal, sunken ship */
-        "X+>|",         /* 16: right end of horizontal, sunken ship */
-        "X+X|",         /* 18: vertical, sunken ship */
-        "/+\\|",        /* 19: top end of vertical, sunken ship */
-        "\\+/|",        /* 20: bottom end of vertical, sunken ship */
+        "X+>|",         /* 18: right end of horizontal, sunken ship */
+        "X+X|",         /* 19: vertical, sunken ship */
+        "/+\\|",        /* 20: top end of vertical, sunken ship */
+        "\\+/|",        /* 21: bottom end of vertical, sunken ship */
+        "(+)|",         /* 22: sunken ship of the lenght 1 */
 };
 #endif
 
@@ -426,7 +437,7 @@ status_t flush_buff()
  * <digit> --> '0'|'1'|...|'9'
  * <letter> --> 'A'|'B'|...|'Z'|'a'|'b'|...|'z'
  */
-status_t scan_coordinate(int *x, int *y, int nx, int ny)
+status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
 {
         /* mode: tracks which stage of parsing the function is in:
          * 0 : numbers first: 1st digit
@@ -456,6 +467,36 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny)
         } else if (c == '/') {
                 return EXIT;
         } else {
+                if (isspace(c)) {
+                        if (print_color) printf("\033[31;1m");
+                        printf("Input Error: Missing coordinate.");
+                        if (print_color) printf("\033[0m");
+                } else if (c == '-' && tolower((c = getchar())) == 'h') {
+                        if (print_color) printf("\033[32;1m");
+                        printf("Instructions on typing the coordinate:\n");
+                        if (print_color) printf("\033[34;1m");
+                        printf("Type the x-coordinate as letter(s) and the y-coordinate as digit(s) as shown at the edge of the field (order of coordinates is irrellevant, but without a space inbetween):\n");
+                        if (print_color) printf("\033[0m\033[1m");
+                        printf(" <coordinate> = ( <letter> [<letter>] <firstDigit> [<digit>] ) | ( <firstDigit> [ <digit> ] <letter> [<letter>] )\n");
+                        printf(" <letter> = 'A' | 'B' | ... | 'Z' | 'a' | 'b' | ... | 'z'\n");
+                        printf(" <firstDigit> = '1' | '2' | ... | '9'\n");
+                        printf(" <digit> = '0' | <firstDigit>\n");
+                        if (print_color) printf("\033[34;1m");
+                        printf("Instructions on typing the coordinate and direction/length for placing the ships:\n");
+                        printf("First type the coordinate as when only typing a coordinate, then type a space and then the direction with the number representing the ship's length and the other character representing the direction in which it should be placed from the coordinate:\n");
+                        if (print_color) printf("\033[0m\033[1m");
+                        printf(" <directLength> = <direction> <length> | <lenght> <direction>\n");
+                        printf(" <length> = <firstDigit> [<digit>]\n");
+                        printf(" <direction> = 'R' | 'r' | 'E' | 'e' | '>'       for signaling the direction east- / rightwards.\n");
+                        printf("               'L' | 'l' | 'W' | 'w' | '<'       for signaling the direction west- / leftwards.\n");
+                        printf("               'U' | 'u' | 'E' | 'n' | '^'       for signaling the direction north- / upwards.\n");
+                        printf("               'D' | 'd' | 'S' | 's' | 'V' | 'v' for signaling the direction south- / downwards.\n");
+                        if (print_color) printf("\033[0m");
+                } else {
+                        if (print_color) printf("\033[31;1m");
+                        printf("Input Error: Unknown coordinate character: '%c' (coordinates must only consist of letters and digits).\n", c);
+                        if (print_color) printf("\033[0m");
+                }
                 if (c != '\n') {
                         flush_buff();
                 }
@@ -479,6 +520,9 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny)
                                         ++mode;
                                         break;
                                 default:
+                                        if (print_color) printf("\033[31;1m");
+                                        printf("Input Error: character: '%c' is not supposed to be a digit.\n", c);
+                                        if (print_color) printf("\033[0m");
                                         flush_buff();
                                         return INPUT_ERROR;
                         }
@@ -499,10 +543,16 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny)
                                         ++mode;
                                         break;
                                 default:
+                                        if (print_color) printf("\033[31;1m");
+                                        printf("Input Error: character: '%c' is not supposed to be a letter.\n", c);
+                                        if (print_color) printf("\033[0m");
                                         flush_buff();
                                         return INPUT_ERROR;
                         }
                 } else {
+                        if (print_color) printf("\033[31;1m");
+                        printf("Input Error: Unknown coordinate character: '%c' (coordinates must only be made of letters and digits).\n", c);
+                        if (print_color) printf("\033[0m");
                         flush_buff();
                         return INPUT_ERROR;
                 }
@@ -514,6 +564,17 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny)
 
         /* makes sure x_hold, y_hold are within the field */
         if (0 >= x_hold || x_hold > nx || 0 >= y_hold || y_hold > ny) {
+                if (print_color) printf("\033[31;1m");
+                if (0 >= x_hold) {
+                        printf("Input Error: Your x-coordinate (letters) is too small to fit on the field or your x-coordinate is missing\n");
+                } else if (x_hold > nx) {
+                        printf("Input Error: Your x-coordinate (letters) is too large to fit on the field\n");
+                } else if (0 >= y_hold) {
+                        printf("Input Error: Your y-coordinate (digits) is too small to fit on the field or your y-coordinate is missing\n");
+                } else {
+                        printf("Input Error: Your y-coordinate (digits) is too large to fit on the field\n");
+                }
+                if (print_color) printf("\033[0m");
                 if (c != '\n') {
                         flush_buff();
                 }
@@ -525,52 +586,97 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny)
 }
 
 /* returns direction passes length on through the pointer or returns negative number in case of error */
-direction_t scan_direction(int *length, int maxShipLength)
+direction_t scan_direction(int *length, int maxShipLength, int print_color)
 {
         int direction = -1;
-        int length_hold = -1;
-        int i;
+        int length_hold = 0;
         char c;
 
-        for (i = 0; i < 2; ++i) {
-                c = toupper(getchar()); /* toupper removes case sensitivity */
+        c = toupper(getchar()); /* toupper removes case sensitivity */
+        if (c == EOF) {
+                return BUFFER_ERROR_DIRECTION;
+        }
+
+        if (isdigit(c)) {
+                length_hold = c - '0';
+                c = toupper(getchar());
                 if (c == EOF) {
                         return BUFFER_ERROR_DIRECTION;
+                } else if (isdigit(c)) {
+                        length_hold *= 10;
+                        length_hold += c - '0';
+                        c = toupper(getchar());
+                } 
+                if (length_hold < MIN_SHIP_LENGTH || maxShipLength < length_hold) {
+                        if (print_color) printf("\033[31;1m");
+                        if (length_hold < MIN_SHIP_LENGTH) {
+                                printf("Input Error: Your ship length '%i' is too small\n", length_hold);
+                        } else {
+                                printf("Input Error: Your ship length '%i' is too large\n", length_hold);
+                        }
+                        if (print_color) printf("\033[0m");
+                        if (c != '\n') {
+                                flush_buff();
+                        }
+                        return INPUT_ERROR_DIRECTION;
                 }
-
+        }
+        switch (c) {
+                case 'R': case 'E': case '>':
+                        direction = RIGHT;
+                        break;
+                case 'D': case 'S': case 'V':
+                        direction = DOWN;
+                        break;
+                case 'L': case 'W': case '<':
+                        direction = LEFT;
+                        break;
+                case 'U': case 'N': case '^':
+                        direction = UP;
+                        break;
+                default:
+                        if (print_color) printf("\033[31;1m");
+                        if (c == '\n') printf("Input Error: Missing direction.\n");
+                        else printf("Input Error: Invalid direction: '%c'.\n", c);
+                        if (print_color) printf("\033[0m\033[1m");
+                        printf("Use: 'R' | 'r' | 'E' | 'e' | '>'       for signaling the direction east- / rightwards.\n");
+                        printf("     'L' | 'l' | 'W' | 'w' | '<'       for signaling the direction west- / leftwards.\n");
+                        printf("     'U' | 'u' | 'E' | 'n' | '^'       for signaling the direction north- / upwards.\n");
+                        printf("     'D' | 'd' | 'S' | 's' | 'V' | 'v' for signaling the direction south- / downwards.\n");
+                        if (print_color) printf("\033[0m");
+                        if (c != '\n') flush_buff();
+                        return INPUT_ERROR_DIRECTION;
+        }
+        if (!length_hold && isdigit(c = toupper(getchar()))) {
+                c = toupper(getchar());
+                length_hold = c - '0';
                 if (isdigit(c)) {
-                        length_hold = c - '0';
-                        if (length_hold < MIN_SHIP_LENGTH || maxShipLength < length_hold) {
-                                if (c != '\n') {
-                                        flush_buff();
-                                }
-                                return INPUT_ERROR_DIRECTION;
+                        c = toupper(getchar());
+                        length_hold *= 10;
+                        length_hold += c - '0';
+                }
+                if (length_hold < MIN_SHIP_LENGTH || maxShipLength < length_hold) {
+                        if (print_color) printf("\033[31;1m");
+                        if (length_hold < MIN_SHIP_LENGTH) {
+                                printf("Input Error: Your ship length '%i' is too small\n", length_hold);
+                        } else {
+                                printf("Input Error: Your ship length '%i' is too large\n", length_hold);
                         }
-                } else {
-                        switch (c) {
-                                case 'R': case 'E': case '>':
-                                        direction = RIGHT;
-                                        break;
-                                case 'D': case 'S': case 'V':
-                                        direction = DOWN;
-                                        break;
-                                case 'L': case 'W': case '<':
-                                        direction = LEFT;
-                                        break;
-                                case 'U': case 'N': case '^':
-                                        direction = UP;
-                                        break;
-                                case '\n':
-                                        return INPUT_ERROR_DIRECTION;
-                                default:
-                                        flush_buff();
-                                        return INPUT_ERROR_DIRECTION;
-                        }
+                        if (print_color) printf("\033[0m");
+                        if (c != '\n') flush_buff();
+                        return INPUT_ERROR_DIRECTION;
                 }
         }
 
-        if (direction == -1 || length_hold == -1) {
-                flush_buff();
+        if (direction == -1 || !length_hold) {
+                if (print_color) printf("\033[31;1m");
+                if (direction == -1) {
+                        printf("Input Error: The direction of your ship is missing\n");
+                } else {
+                        printf("Input Error: Your ship length is too large / too small / non existent\n");
+                }
+                if (print_color) printf("\033[0m");
+                if (c != '\n') flush_buff();
                 return INPUT_ERROR_DIRECTION;
         }
         *length = length_hold;
@@ -583,6 +689,7 @@ status_t choose_ships(play_fields_t *fld)
         /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
+        const int print_color = fld->print_color;
         shipstate_t **data_right = fld->data_right;
         const int maxShipLength = fld->maxShipLength;
         /* nShipsRemaining[i] is the number of i long ships left */
@@ -612,6 +719,7 @@ status_t choose_ships(play_fields_t *fld)
                 }
                 if (printField) {
                         print_field(fld);
+                        if (print_color) printf("\033[1m");
                         printf("You have ");
                         for (i = maxShipLength; i >= MIN_SHIP_LENGTH; --i) {
                                 if (nShipsRemaining[i]) {
@@ -619,21 +727,24 @@ status_t choose_ships(play_fields_t *fld)
                                 }
                         }
                         printf("remaining\n");
+                        if (print_color) printf("\033[0m");
                 } else {
                         printField = TRUE;
                 }
+                if (print_color) printf("\033[1m");
                 printf("Choose where to place your ships, by typing the start coordinate and the direction, length of your ship.\n");
-                printf("  e.g. 'A1 2s' a ship at coordinate a1 with length 2 and facing southwards\n");
-                /* scan coordinate and direction, where ship should be placed */
+                if (print_color) printf("\033[0m");
+                printf("  e.g. 'A1 2s' a ship at coordinate a1 with length 2 and facing southwards (for further information type '-h')\n");
 
-                status = scan_coordinate(&x, &y, nx, ny);
+                /* scan coordinate and direction, where ship should be placed */
+                status = scan_coordinate(&x, &y, nx, ny, print_color);
                 switch (status) {
                         case SUCCESS_ENDL:
                                 direction = RIGHT;
                                 length = 1;
                                 break;
                         case SUCCESS:
-                                direction = scan_direction(&length, maxShipLength);
+                                direction = scan_direction(&length, maxShipLength, print_color);
                                 if (direction == BUFFER_ERROR_DIRECTION) {
                                         printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
                                         return BUFFER_ERROR;
@@ -655,6 +766,9 @@ status_t choose_ships(play_fields_t *fld)
 
                 /* check if there are ships of the selected length left */
                 if (length > maxShipLength || nShipsRemaining[length] <= 0) {
+                        if (print_color) printf("\033[31;1m");
+                        printf("You don't have any ship with the length %i left to place.\n", length);
+                        if (print_color) printf("\033[0m");
                         printField = FALSE;
                         continue;
                 }
@@ -698,6 +812,9 @@ status_t choose_ships(play_fields_t *fld)
                         }
                 }
                 if (!is_free) {
+                        if (print_color) printf("\033[31;1m");
+                        printf("You placed your ship, where it would collide with a wall or touch another ship\n");
+                        if (print_color) printf("\033[0m");
                         printField = FALSE;
                         continue;
                 }
@@ -884,6 +1001,7 @@ status_t player_shoot(play_fields_t *fld)
 {
         const int nx = fld->nx;
         const int ny = fld->ny;
+        const int print_color = fld->print_color;
         shipstate_t **data_left = fld->data_left;
         int *nShipsRemaining_left = fld->nShipsRemaining_left;
 
@@ -891,12 +1009,21 @@ status_t player_shoot(play_fields_t *fld)
         point_t point;
         status_t status;
 
-        printf("Type the coordinates, where you want to shoot at.\n");
-        while ((status = scan_coordinate(&x, &y, nx, ny)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(data_left[y][x])))  {
+        if (print_color) printf("\033[1m");
+        printf("Type the coordinates, where you want to shoot at (for further information type '-h').\n");
+        if (print_color) printf("\033[0m");
+        while ((status = scan_coordinate(&x, &y, nx, ny, print_color)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(data_left[y][x])))  {
                 if (status == SUCCESS) {
                         flush_buff();
                 }
-                printf("Error: Retype the coordinates, where you want to shoot at.\n");
+                if (status >= SUCCESS && has_been_shot(data_left[y][x])) {
+                        if (print_color) printf("\033[31;1m");
+                        printf("Don't waste your shots: this box has already been shot at by you.\n");
+                        if (print_color) printf("\033[0m");
+                }
+                if (print_color) printf("\033[1m");
+                printf("Retype the coordinates, where you want to shoot at (for further information type '-h').\n");
+                if (print_color) printf("\033[0m");
         }
         if (status == BUFFER_ERROR) {
                 return BUFFER_ERROR;
@@ -977,7 +1104,9 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
                                 printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                                 return;
                 }
+                if (fld->print_color) printf("\033[1m");
                 printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
+                if (fld->print_color) printf("\033[0m");
         } while (is_ship(data_right[y][x]) && !has_somemone_won(nShipsRemaining_right, fld->maxShipLength));
 
 #if 0
@@ -1184,7 +1313,9 @@ int main(int argc, char *argv[])
                 }
         }
         if (field.nx < field.maxShipLength && field.ny < field.maxShipLength) {
+                if (field.print_color) printf("\033[31;1m");
                 printf("Input Error: your fields (%i x %i) are smaller than the maximum ship length (%i).\n", field.nx, field.ny, field.maxShipLength);
+                if (field.print_color) printf("\033[0m");
                 return INPUT_ERROR;
         }
 
@@ -1289,16 +1420,19 @@ int main(int argc, char *argv[])
                 if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) break;
         }
 
+        if (field.print_color) printf("\033[32;1m");
         printf("\nPlayer's ships:\n");
         for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) {
                 if (nShipsTotal[i])
                         printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_right[i], nShipsTotal[i], i);
         }
+        if (field.print_color) printf("\033[31;1m");
         printf("\nBot's ships:\n");
         for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) {
                 if (nShipsTotal[i])
                         printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_left[i], nShipsTotal[i], i);
         }
+        if (field.print_color) printf("\033[0m");
 
         free_field(&field);
 
