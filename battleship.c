@@ -32,62 +32,70 @@
 
 
 typedef enum {
-        NONE = 0,               /* 0:   unhit - water */
-        SPLASH,                 /* 1:   hit water */
-        UNHIT_HORIZ,            /* 2:   horizontal */
-        UNHIT_VERT,             /* 3:   vertical */
-        HIT,                    /* 4:   hit ship (on left side, only used for printing) */
-        HIT_HORIZ,              /* 5:   horizontal, hit ship */
-        HIT_VERT,               /* 6:   vertical, hit ship */
-        SUNK_HORIZ,             /* 7:   horizontal, sunken ship */
-        SUNK_VERT,              /* 8:   vertical, sunken ship */
-        NONE_INVERT,            /* 9: inverted, unhit - water */
-        SPLASH_INVERT,          /* 10: inverted, hit water */
-        UNHIT_HORIZ_INVERT,     /* 11: inverted, horizontal */
-        UNHIT_VERT_INVERT,      /* 12: inverted, vertical */
-        HIT_INVERT,             /* 13: inverted, hit ship (on left side, only used for printing) */
-        HIT_HORIZ_INVERT,       /* 14: inverted, horizontal, hit ship */
-        HIT_VERT_INVERT,        /* 15: inverted, vertical, hit ship */
-        SUNK_HORIZ_INVERT,      /* 16: inverted, horizontal, sunken ship */
-        SUNK_VERT_INVERT        /* 17: inverted, vertical, sunken ship */
+        NONE = 0,               /* 0: unhit - water */
+        SPLASH,                 /* 1: hit water */
+        UNHIT_HORIZ,            /* 2: middle of horizontal, unhit ship on the right field */
+        UNHIT_HORIZ_LEFT,       /* 3: left end of horizontal, unhit ship on the right field */
+        UNHIT_HORIZ_RIGHT,      /* 4: right end of horizontal, unhit ship on the right field */
+        UNHIT_VERT,             /* 5: vertical, unhit ship on the right field */
+        UNHIT_VERT_TOP,         /* 6: top end of vertical, unhit ship on the right field */
+        UNHIT_VERT_BOTTOM,      /* 7: bottom end of vertical, unhit ship on the right field */
+        UNHIT_SINGLE,           /* 8: unhit ship on the right field of the length 1 */
+        HIT,                    /* 9: hit ship (on left side) */
+        HIT_HORIZ,              /* 10: horizontal, hit ship */
+        HIT_HORIZ_LEFT,         /* 11: left end of horizontal, hit ship */
+        HIT_HORIZ_RIGHT,        /* 12: right end of horizontal, hit ship */
+        HIT_VERT,               /* 13: vertical, hit ship */
+        HIT_VERT_TOP,           /* 14: top end of vertical, hit ship */
+        HIT_VERT_BOTTOM,        /* 15: bottom end of vertical, hit ship */
+        HIT_SINGLE,             /* 16: hit ship of the length 1 */
+        SUNK_HORIZ,             /* 17: horizontal, sunken ship */
+        SUNK_HORIZ_LEFT,        /* 18: left end of horizontal, sunken ship */
+        SUNK_HORIZ_RIGHT,       /* 19: right end of horizontal, sunken ship */
+        SUNK_VERT,              /* 20: vertical, sunken ship */
+        SUNK_VERT_TOP,          /* 21: top end of vertical, sunken ship */
+        SUNK_VERT_BOTTOM,       /* 22: bottom end of vertical, sunken ship */
+        SUNK_SINGLE,            /* 23: sunken ship of the lenght 1 */
+        NONE_INVERT,                   /* 24: unhit - water NOTE: after this point the fields are inverted */
+        SPLASH_INVERT,                 /* 25: hit water */
+        UNHIT_HORIZ_INVERT,            /* 26: horizontal */
+        UNHIT_HORIZ_LEFT_INVERT,       /* 27: left end of horizontal, unhit ship on the right field */
+        UNHIT_HORIZ_RIGHT_INVERT,      /* 28: right end of horizontal, unhit ship on the right field */
+        UNHIT_VERT_INVERT,             /* 29: vertical, unhit ship on the right field */
+        UNHIT_VERT_TOP_INVERT,         /* 30: top end of vertical, unhit ship on the right field */
+        UNHIT_VERT_BOTTOM_INVERT,      /* 31: bottom end of vertical, unhit ship on the right field */
+        UNHIT_SINGLE_INVERT,           /* 32: unhit ship on the right field of the length 1 */
+        HIT_INVERT,                    /* 33: hit ship (on left side) */
+        HIT_HORIZ_INVERT,              /* 34: horizontal, hit ship */
+        HIT_HORIZ_LEFT_INVERT,         /* 35: left end of horizontal, hit ship */
+        HIT_HORIZ_RIGHT_INVERT,        /* 36: right end of horizontal, hit ship */
+        HIT_VERT_INVERT,               /* 37: vertical, hit ship */
+        HIT_VERT_TOP_INVERT,           /* 38: top end of vertical, hit ship */
+        HIT_VERT_BOTTOM_INVERT,        /* 39: bottom end of vertical, hit ship */
+        HIT_SINGLE_INVERT,             /* 40: hit ship of the length 1 */
+        SUNK_HORIZ_INVERT,             /* 41: horizontal, sunken ship */
+        SUNK_HORIZ_LEFT_INVERT,        /* 42: left end of horizontal, sunken ship */
+        SUNK_HORIZ_RIGHT_INVERT,       /* 43: right end of horizontal, sunken ship */
+        SUNK_VERT_INVERT,              /* 44: vertical, sunken ship */
+        SUNK_VERT_TOP_INVERT,          /* 45: top end of vertical, sunken ship */
+        SUNK_VERT_BOTTOM_INVERT,       /* 46: bottom end of vertical, sunken ship */
+        SUNK_SINGLE_INVERT            /* 47: sunken ship of the lenght 1 */
 } shipstate_t;
 
 /* Convenience macros for handling hit/unhit status */
-#define is_unhit(box) ((box) == UNHIT_HORIZ || (box) == UNHIT_VERT || (box) == UNHIT_HORIZ_INVERT || (box) == UNHIT_VERT_INVERT)
-#define is_hit(box) ((box) == HIT || (box) == HIT_HORIZ || (box) == HIT_VERT || (box) == HIT_HORIZ_INVERT || (box) == HIT_VERT_INVERT)
-#define is_sunk(box) ((box) == SUNK_HORIZ || (box) == SUNK_VERT || (box) == SUNK_HORIZ_INVERT || (box) == SUNK_VERT_INVERT)
+#define is_unhit(box) ((UNHIT_HORIZ <= (box) && (box) <= UNHIT_SINGLE) || (UNHIT_HORIZ_INVERT <= (box) && (box) <= UNHIT_SINGLE_INVERT))
+#define is_hit(box) ((HIT <= (box) && (box) <= HIT_SINGLE) || (HIT_INVERT <= (box) && (box) <= HIT_SINGLE_INVERT))
+#define is_sunk(box) ((SUNK_HORIZ <= (box) && (box) <= SUNK_SINGLE) || (SUNK_HORIZ_INVERT <= (box) && (box) <= SUNK_SINGLE_INVERT))
 #define is_ship(box) (is_unhit(box) || is_hit(box) || is_sunk(box))
 #define has_been_shot(box) ((box) == SPLASH || (box) == SPLASH_INVERT || is_hit(box) || is_sunk(box))
-#define is_horiz(box) ((box) == UNHIT_HORIZ || (box) == HIT_HORIZ || (box) == SUNK_HORIZ || (box) == UNHIT_HORIZ_INVERT || (box) == HIT_HORIZ_INVERT || (box) == SUNK_HORIZ_INVERT)
-#define is_vert(box) ((box) == UNHIT_VERT || (box) == HIT_VERT || (box) == SUNK_VERT || (box) == UNHIT_VERT_INVERT || (box) == HIT_VERT_INVERT || (box) == SUNK_VERT_INVERT)
+#define is_horiz(box) ((UNHIT_HORIZ <= (box) && (box) <= UNHIT_HORIZ_RIGHT) || (HIT_HORIZ <= (box) && (box) <= HIT_HORIZ_RIGHT) || (SUNK_HORIZ <= (box) && (box) <= SUNK_HORIZ_RIGHT) || (UNHIT_HORIZ_INVERT <= (box) && (box) <= UNHIT_HORIZ_RIGHT_INVERT) || (HIT_HORIZ_INVERT <= (box) && (box) <= HIT_HORIZ_RIGHT_INVERT) || (SUNK_HORIZ_INVERT <= (box) && (box) <= SUNK_HORIZ_RIGHT_INVERT))
+#define is_vert(box) ((UNHIT_VERT <= (box) && (box) <= UNHIT_VERT_BOTTOM) || (HIT_VERT <= (box) && (box) <= HIT_VERT_BOTTOM) || (SUNK_VERT <= (box) && (box) <= SUNK_VERT_BOTTOM) || (UNHIT_VERT_INVERT <= (box) && (box) <= UNHIT_VERT_BOTTOM_INVERT) || (HIT_VERT_INVERT <= (box) && (box) <= HIT_VERT_BOTTOM_INVERT) || (SUNK_VERT_INVERT <= (box) && (box) <= SUNK_VERT_BOTTOM_INVERT))
+#define is_single(box) ((box) == UNHIT_SINGLE || (box) == HIT_SINGLE || (box) == SUNK_SINGLE || (box) == UNHIT_SINGLE_INVERT || (box) == HIT_SINGLE_INVERT || (box) == SUNK_SINGLE_INVERT)
 #define INVERT_DIFF (NONE_INVERT)
-#define is_invert(box) ((box) == NONE_INVERT || (box) == SPLASH_INVERT || (box) == UNHIT_HORIZ_INVERT || (box) == UNHIT_VERT_INVERT || (box) == HIT_INVERT || (box) == HIT_HORIZ_INVERT || (box) == HIT_VERT_INVERT || (box) == SUNK_HORIZ_INVERT || (box) == SUNK_VERT_INVERT)
+#define is_invert(box) (NONE_INVERT <= (box) && (box) <= SUNK_SINGLE_INVERT)
 #define invert(box) (is_invert(box) ? (box - INVERT_DIFF) : (box + INVERT_DIFF))
 #define remove_invert(box) ((box) % INVERT_DIFF)
 
-static const char *const rowFormats[] =
-{
-        "   |",         /* 0: unhit - water */
-        "~~~|",         /* 1: hit water */
-        "=O=|",         /* 2: horizontal, unhit ship on the right field */
-        "|O||",         /* 3: vertical, unhit ship on the right field */
-        " X |",         /* 4: hit ship (on left side) */
-        "=X=|",         /* 5: horizontal, hit ship */
-        "|X||",         /* 6: vertical, hit ship */
-        "X=X|",         /* 7: horizontal, sunken ship */
-        "X|X|",         /* 8: vertical, sunken ship */
-        "   |",         /* 9: unhit - water NOTE: after this point the fields are inverted, which doesn't work without ansi coloring so there is no change here */
-        "~~~|",         /* 10: hit water */
-        "=O=|",         /* 11: horizontal, unhit ship on the right field */
-        "|O||",         /* 12: vertical, unhit ship on the right field */
-        " X |",         /* 13: hit ship (on left side) */
-        "=X=|",         /* 14: horizontal, hit ship */
-        "|X||",         /* 15: vertical, hit ship */
-        "X=X|",         /* 16: horizontal, sunken ship */
-        "X|X|",         /* 17: vertical, sunken ship */
-};
-
-#if 0
 static const char *const rowFormats[] =
 {
         "   |",         /* 0: unhit - water */
@@ -106,36 +114,90 @@ static const char *const rowFormats[] =
         "|X||",         /* 13: vertical, hit ship */
         "/X\\|",        /* 14: top end of vertical, hit ship */
         "\\X/|",        /* 15: bottom end of vertical, hit ship */
-        "X+X|",         /* 16: horizontal, sunken ship */
-        "<+X|",         /* 17: left end of horizontal, sunken ship */
-        "X+>|",         /* 18: right end of horizontal, sunken ship */
-        "X+X|",         /* 19: vertical, sunken ship */
-        "/+\\|",        /* 20: top end of vertical, sunken ship */
-        "\\+/|",        /* 21: bottom end of vertical, sunken ship */
-        "(+)|",         /* 22: sunken ship of the lenght 1 */
+        "(X)|",         /* 16: hit ship of the length 1*/
+        "X+X|",         /* 17: horizontal, sunken ship */
+        "<+X|",         /* 18: left end of horizontal, sunken ship */
+        "X+>|",         /* 19: right end of horizontal, sunken ship */
+        "X+X|",         /* 20: vertical, sunken ship */
+        "/+\\|",        /* 21: top end of vertical, sunken ship */
+        "\\+/|",        /* 22: bottom end of vertical, sunken ship */
+        "(+)|",         /* 23: sunken ship of the lenght 1 */
+        "   |",         /* 24: unhit - water NOTE: after this point the fields are inverted, which doesn't work without ansi coloring so there is no change here */
+        "~~~|",         /* 25: hit water */
+        "=O=|",         /* 26: horizontal, unhit ship on the right field */
+        "<O=|",         /* 27: left end of horizontal, unhit ship on the right field */
+        "=O>|",         /* 28: right end of horizontal, unhit ship on the right field */
+        "|O||",         /* 29: vertical, unhit ship on the right field */
+        "/o\\|",        /* 30: top end of vertical, unhit ship on the right field */
+        "\\o/|",        /* 31: bottom end of vertical, unhit ship on the right field */
+        "(O)|",         /* 32: unhit ship on the right field of the length 1 */
+        " X |",         /* 33: hit ship (on left side) */
+        "=X=|",         /* 34: horizontal, hit ship */
+        "<X=|",         /* 35: left end of horizontal, hit ship */
+        "=X>|",         /* 36: right end of horizontal, hit ship */
+        "|X||",         /* 37: vertical, hit ship */
+        "/X\\|",        /* 38: top end of vertical, hit ship */
+        "\\X/|",        /* 39: bottom end of vertical, hit ship */
+        "(X)|",         /* 40: hit ship of the length 1*/
+        "X+X|",         /* 41: horizontal, sunken ship */
+        "<+X|",         /* 42: left end of horizontal, sunken ship */
+        "X+>|",         /* 43: right end of horizontal, sunken ship */
+        "X+X|",         /* 44: vertical, sunken ship */
+        "/+\\|",        /* 45: top end of vertical, sunken ship */
+        "\\+/|",        /* 46: bottom end of vertical, sunken ship */
+        "(+)|"          /* 47: sunken ship of the lenght 1 */
 };
-#endif
 
 static const char *const rowFormats_utf[] =
 {
         "   │",         /* 0: unhit - water */
         "≈≈≈│",         /* 1: hit water */
         "═●═│",         /* 2: horizontal, unhit ship on the right field */
-        "│●││",         /* 3: vertical, unhit ship on the right field */
-        " ╳ │",         /* 4: hit ship (on left side) */
-        "═╳═│",         /* 5: horizontal, hit ship */
-        "│╳││",         /* 6: vertical, hit ship */
-        "╳═╳│",         /* 7: horizontal, sunken ship */
-        "╳│╳│",         /* 8: vertical, sunken ship */
-        "   │",         /* 9: unhit - water NOTE: after this point the fields are inverted, which doesn't work without ansi coloring so there is no change here */
-        "≈≈≈│",         /* 10: hit water */
-        "═●═│",         /* 11: horizontal, unhit ship on the right field */
-        "│●││",         /* 12: vertical, unhit ship on the right field */
-        " ╳ │",         /* 13: hit ship (on left side) */
-        "═╳═│",         /* 14: horizontal, hit ship */
-        "│╳││",         /* 15: vertical, hit ship */
-        "╳═╳│",         /* 16: horizontal, sunken ship */
-        "╳│╳│",         /* 17: vertical, sunken ship */
+        "<●═│",         /* 3: left end of horizontal, unhit ship on the right field */
+        "═●>│",         /* 4: right end of horizontal, unhit ship on the right field */
+        "│●││",         /* 5: vertical, unhit ship on the right field */
+        "/●\\│",        /* 6: top end of vertical, unhit ship on the right field */
+        "\\●/│",        /* 7: bottom end of vertical, unhit ship on the right field */
+        "(●)│",         /* 8: unhit ship on the right field of the length 1 */
+        " ╳ │",         /* 9: hit ship (on left side) */
+        "═╳═│",         /* 10: horizontal, hit ship */
+        "<╳═│",         /* 11: left end of horizontal, hit ship */
+        "═╳>│",         /* 12: right end of horizontal, hit ship */
+        "│╳││",         /* 13: vertical, hit ship */
+        "/╳\\│",        /* 14: top end of vertical, hit ship */
+        "\\╳/│",        /* 15: bottom end of vertical, hit ship */
+        "(╳)│",         /* 16: hit ship of the length 1*/
+        "╳+╳│",         /* 17: horizontal, sunken ship */
+        "<+╳│",         /* 18: left end of horizontal, sunken ship */
+        "╳+>│",         /* 19: right end of horizontal, sunken ship */
+        "╳+╳│",         /* 20: vertical, sunken ship */
+        "/+\\│",        /* 21: top end of vertical, sunken ship */
+        "\\+/│",        /* 22: bottom end of vertical, sunken ship */
+        "(+)│",         /* 23: sunken ship of the lenght 1 */
+        "   │",         /* 24: unhit - water NOTE: after this point the fields are inverted, which doesn't work without ansi coloring so there is no change here */
+        "≈≈≈│",         /* 25: hit water */
+        "═●═│",         /* 26: horizontal, unhit ship on the right field */
+        "<●═│",         /* 27: left end of horizontal, unhit ship on the right field */
+        "═●>│",         /* 28: right end of horizontal, unhit ship on the right field */
+        "│●││",         /* 29: vertical, unhit ship on the right field */
+        "/●\\│",        /* 30: top end of vertical, unhit ship on the right field */
+        "\\●/│",        /* 31: bottom end of vertical, unhit ship on the right field */
+        "(●)│",         /* 32: unhit ship on the right field of the length 1 */
+        " ╳ │",         /* 33: hit ship (on left side) */
+        "═╳═│",         /* 34: horizontal, hit ship */
+        "<╳═│",         /* 35: left end of horizontal, hit ship */
+        "═╳>│",         /* 36: right end of horizontal, hit ship */
+        "│╳││",         /* 37: vertical, hit ship */
+        "/╳\\│",        /* 38: top end of vertical, hit ship */
+        "\\╳/│",        /* 39: bottom end of vertical, hit ship */
+        "(╳)│",         /* 40: hit ship of the length 1*/
+        "╳+╳│",         /* 41: horizontal, sunken ship */
+        "<+╳│",         /* 42: left end of horizontal, sunken ship */
+        "╳+>│",         /* 43: right end of horizontal, sunken ship */
+        "╳+╳│",         /* 44: vertical, sunken ship */
+        "/+\\│",        /* 45: top end of vertical, sunken ship */
+        "\\+/│",        /* 46: bottom end of vertical, sunken ship */
+        "(+)│"         /* 47: sunken ship of the lenght 1 */
 };
 
 /* ansi-colors:
@@ -150,21 +212,51 @@ static const char *const rowFormats_color[] =
         "   |",                         /* 0: unhit - water */
         "\033[34;1m~~~\033[0m|",        /* 1: hit water */
         "\033[32;1m=O=\033[0m|",        /* 2: horizontal, unhit ship on the right field */
-        "\033[32;1m|O|\033[0m|",        /* 3: vertical, unhit ship on the right field */
-        "\033[31;1m X \033[0m|",        /* 4: hit ship (on left side) */
-        "\033[31;1m=X=\033[0m|",        /* 5: horizontal, hit ship */
-        "\033[31;1m|X|\033[0m|",        /* 6: vertical, hit ship */
-        "\033[35;1mX=X\033[0m|",        /* 7: horizontal, sunken ship */
-        "\033[35;1mX|X\033[0m|",        /* 8: vertical, sunken ship */
-        "   |",                         /* 9: inverted, unhit - water */
-        "\033[34;1;7m~~~\033[0m|",      /* 10: inverted, hit water */
-        "\033[32;1;7m=O=\033[0m|",      /* 11: inverted, horizontal, unhit ship on the right field */
-        "\033[32;1;7m|O|\033[0m|",      /* 12: inverted, vertical, unhit ship on the right field */
-        "\033[31;1;7m X \033[0m|",      /* 13: inverted, hit ship (on left side) */
-        "\033[31;1;7m=X=\033[0m|",      /* 14: inverted, horizontal, hit ship */
-        "\033[31;1;7m|X|\033[0m|",      /* 15: inverted, vertical, hit ship */
-        "\033[35;1;7mX=X\033[0m|",      /* 16: inverted, horizontal, sunken ship */
-        "\033[35;1;7mX|X\033[0m|",      /* 17: inverted, vertical, sunken ship */
+        "\033[32;1m<O=\033[0m|",        /* 3: left end of horizontal, unhit ship on the right field */
+        "\033[32;1m=O>\033[0m|",        /* 4: right end of horizontal, unhit ship on the right field */
+        "\033[32;1m|O|\033[0m|",        /* 5: vertical, unhit ship on the right field */
+        "\033[32;1m/o\\\033[0m|",       /* 6: top end of vertical, unhit ship on the right field */
+        "\033[32;1m\\o/\033[0m|",       /* 7: bottom end of vertical, unhit ship on the right field */
+        "\033[32;1m(O)\033[0m|",        /* 8: unhit ship on the right field of the length 1 */
+        "\033[31;1m X \033[0m|",        /* 9: hit ship (on left side) */
+        "\033[31;1m=X=\033[0m|",        /* 10: horizontal, hit ship */
+        "\033[31;1m<X=\033[0m|",        /* 11: left end of horizontal, hit ship */
+        "\033[31;1m=X>\033[0m|",        /* 12: right end of horizontal, hit ship */
+        "\033[31;1m|X|\033[0m|",        /* 13: vertical, hit ship */
+        "\033[31;1m/X\\\033[0m|",       /* 14: top end of vertical, hit ship */
+        "\033[31;1m\\X/\033[0m|",       /* 15: bottom end of vertical, hit ship */
+        "\033[31;1m(X)\033[0m|",        /* 16: hit ship of the length 1*/
+        "\033[35;1mX+X\033[0m|",        /* 17: horizontal, sunken ship */
+        "\033[35;1m<+X\033[0m|",        /* 18: left end of horizontal, sunken ship */
+        "\033[35;1mX+>\033[0m|",        /* 19: right end of horizontal, sunken ship */
+        "\033[35;1mX+X\033[0m|",        /* 20: vertical, sunken ship */
+        "\033[35;1m/+\\\033[0m|",       /* 21: top end of vertical, sunken ship */
+        "\033[35;1m\\+/\033[0m|",       /* 22: bottom end of vertical, sunken ship */
+        "\033[35;1m(+)\033[0m|",        /* 23: sunken ship of the lenght 1 */
+        "   |",                         /* 24: unhit - water NOTE: after this point the fields are inverted, which doesn't work without ansi coloring so there is no change here */
+        "\033[34;1;7m~~~\033[0m|",     /* 25: hit water */
+        "\033[32;1;7m=O=\033[0m|",     /* 26: horizontal, unhit ship on the right field */
+        "\033[32;1;7m<O=\033[0m|",     /* 27: left end of horizontal, unhit ship on the right field */
+        "\033[32;1;7m=O>\033[0m|",     /* 28: right end of horizontal, unhit ship on the right field */
+        "\033[32;1;7m|O|\033[0m|",     /* 29: vertical, unhit ship on the right field */
+        "\033[32;1;7m/o\\\033[0m|",    /* 30: top end of vertical, unhit ship on the right field */
+        "\033[32;1;7m\\o/\033[0m|",    /* 31: bottom end of vertical, unhit ship on the right field */
+        "\033[32;1;7m(O)\033[0m|",     /* 32: unhit ship on the right field of the length 1 */
+        "\033[31;1;7m X \033[0m|",     /* 33: hit ship (on left side) */
+        "\033[31;1;7m=X=\033[0m|",     /* 34: horizontal, hit ship */
+        "\033[31;1;7m<X=\033[0m|",     /* 35: left end of horizontal, hit ship */
+        "\033[31;1;7m=X>\033[0m|",     /* 36: right end of horizontal, hit ship */
+        "\033[31;1;7m|X|\033[0m|",     /* 37: vertical, hit ship */
+        "\033[31;1;7m/X\\\033[0m|",    /* 38: top end of vertical, hit ship */
+        "\033[31;1;7m\\X/\033[0m|",    /* 39: bottom end of vertical, hit ship */
+        "\033[31;1;7m(X)\033[0m|",     /* 40: hit ship of the length 1*/
+        "\033[35;1;7mX+X\033[0m|",     /* 41: horizontal, sunken ship */
+        "\033[35;1;7m<+X\033[0m|",     /* 42: left end of horizontal, sunken ship */
+        "\033[35;1;7mX+>\033[0m|",     /* 43: right end of horizontal, sunken ship */
+        "\033[35;1;7mX+X\033[0m|",     /* 44: vertical, sunken ship */
+        "\033[35;1;7m/+\\\033[0m|",    /* 45: top end of vertical, sunken ship */
+        "\033[35;1;7m\\+/\033[0m|",    /* 46: bottom end of vertical, sunken ship */
+        "\033[35;1;7m(+)\033[0m|"      /* 47: sunken ship of the lenght 1 */
 };
 
 static const char *const rowFormats_color_utf[] =
@@ -172,21 +264,51 @@ static const char *const rowFormats_color_utf[] =
         "   │",                         /* 0: unhit - water */
         "\033[34;1m≈≈≈\033[0m│",        /* 1: hit water */
         "\033[32;1m═●═\033[0m│",        /* 2: horizontal, unhit ship on the right field */
-        "\033[32;1m│●│\033[0m│",        /* 3: vertical, unhit ship on the right field */
-        "\033[31;1m ╳ \033[0m│",        /* 4: hit ship (on left side) */
-        "\033[31;1m═╳═\033[0m│",        /* 5: horizontal, hit ship */
-        "\033[31;1m│╳│\033[0m│",        /* 6: vertical, hit ship */
-        "\033[35;1m╳═╳\033[0m│",        /* 7: horizontal, sunken ship */
-        "\033[35;1m╳│╳\033[0m│",        /* 8: vertical, sunken ship */
-        "   │",                         /* 9: inverted, unhit - water */
-        "\033[34;1;7m≈≈≈\033[0m│",      /* 10: inverted, hit water */
-        "\033[32;1;7m═●═\033[0m│",      /* 11: inverted, horizontal, unhit ship on the right field */
-        "\033[32;1;7m│●│\033[0m│",      /* 12: inverted, vertical, unhit ship on the right field */
-        "\033[31;1;7m ╳ \033[0m│",      /* 13: inverted, hit ship (on left side) */
-        "\033[31;1;7m═╳═\033[0m│",      /* 14: inverted, horizontal, hit ship */
-        "\033[31;1;7m│╳│\033[0m│",      /* 15: inverted, vertical, hit ship */
-        "\033[35;1;7m╳═╳\033[0m│",      /* 16: inverted, horizontal, sunken ship */
-        "\033[35;1;7m╳│╳\033[0m│",      /* 17: inverted, vertical, sunken ship */
+        "\033[32;1m<●═\033[0m│",        /* 3: left end of horizontal, unhit ship on the right field */
+        "\033[32;1m═●>\033[0m│",        /* 4: right end of horizontal, unhit ship on the right field */
+        "\033[32;1m│●│\033[0m│",        /* 5: vertical, unhit ship on the right field */
+        "\033[32;1m/●\\\033[0m│",       /* 6: top end of vertical, unhit ship on the right field */
+        "\033[32;1m\\●/\033[0m│",       /* 7: bottom end of vertical, unhit ship on the right field */
+        "\033[32;1m(●)\033[0m│",        /* 8: unhit ship on the right field of the length 1 */
+        "\033[31;1m ╳ \033[0m│",        /* 9: hit ship (on left side) */
+        "\033[31;1m═╳═\033[0m│",        /* 10: horizontal, hit ship */
+        "\033[31;1m<╳═\033[0m│",        /* 11: left end of horizontal, hit ship */
+        "\033[31;1m═╳>\033[0m│",        /* 12: right end of horizontal, hit ship */
+        "\033[31;1m│╳│\033[0m│",        /* 13: vertical, hit ship */
+        "\033[31;1m/╳\\\033[0m│",       /* 14: top end of vertical, hit ship */
+        "\033[31;1m\\╳/\033[0m│",       /* 15: bottom end of vertical, hit ship */
+        "\033[31;1m(╳)\033[0m│",        /* 16: hit ship of the length 1*/
+        "\033[35;1m╳+╳\033[0m│",        /* 17: horizontal, sunken ship */
+        "\033[35;1m<+╳\033[0m│",        /* 18: left end of horizontal, sunken ship */
+        "\033[35;1m╳+>\033[0m│",        /* 19: right end of horizontal, sunken ship */
+        "\033[35;1m╳+╳\033[0m│",        /* 20: vertical, sunken ship */
+        "\033[35;1m/+\\\033[0m│",       /* 21: top end of vertical, sunken ship */
+        "\033[35;1m\\+/\033[0m│",       /* 22: bottom end of vertical, sunken ship */
+        "\033[35;1m(+)\033[0m│",        /* 23: sunken ship of the lenght 1 */
+        "   │",                         /* 24: unhit - water NOTE: after this point the fields are inverted, which doesn't work without ansi coloring so there is no change here */
+        "\033[34;1;7m≈≈≈\033[0m│",     /* 25: hit water */
+        "\033[32;1;7m═●═\033[0m│",     /* 26: horizontal, unhit ship on the right field */
+        "\033[32;1;7m<●═\033[0m│",     /* 27: left end of horizontal, unhit ship on the right field */
+        "\033[32;1;7m═●>\033[0m│",     /* 28: right end of horizontal, unhit ship on the right field */
+        "\033[32;1;7m│●│\033[0m│",     /* 29: vertical, unhit ship on the right field */
+        "\033[32;1;7m/●\\\033[0m│",    /* 30: top end of vertical, unhit ship on the right field */
+        "\033[32;1;7m\\●/\033[0m│",    /* 31: bottom end of vertical, unhit ship on the right field */
+        "\033[32;1;7m(●)\033[0m│",     /* 32: unhit ship on the right field of the length 1 */
+        "\033[31;1;7m ╳ \033[0m│",     /* 33: hit ship (on left side) */
+        "\033[31;1;7m═╳═\033[0m│",     /* 34: horizontal, hit ship */
+        "\033[31;1;7m<╳═\033[0m│",     /* 35: left end of horizontal, hit ship */
+        "\033[31;1;7m═╳>\033[0m│",     /* 36: right end of horizontal, hit ship */
+        "\033[31;1;7m│╳│\033[0m│",     /* 37: vertical, hit ship */
+        "\033[31;1;7m/╳\\\033[0m│",    /* 38: top end of vertical, hit ship */
+        "\033[31;1;7m\\╳/\033[0m│",    /* 39: bottom end of vertical, hit ship */
+        "\033[31;1;7m(╳)\033[0m│",     /* 40: hit ship of the length 1*/
+        "\033[35;1;7m╳+╳\033[0m│",     /* 41: horizontal, sunken ship */
+        "\033[35;1;7m<+╳\033[0m│",     /* 42: left end of horizontal, sunken ship */
+        "\033[35;1;7m╳+>\033[0m│",     /* 43: right end of horizontal, sunken ship */
+        "\033[35;1;7m╳+╳\033[0m│",     /* 44: vertical, sunken ship */
+        "\033[35;1;7m/+\\\033[0m│",    /* 45: top end of vertical, sunken ship */
+        "\033[35;1;7m\\+/\033[0m│",    /* 46: bottom end of vertical, sunken ship */
+        "\033[35;1;7m(+)\033[0m│"      /* 47: sunken ship of the lenght 1 */
 };
 
 typedef enum {
@@ -473,24 +595,30 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
                         if (print_color) printf("\033[0m");
                 } else if (c == '-' && tolower((c = getchar())) == 'h') {
                         if (print_color) printf("\033[32;1m");
-                        printf("Instructions on typing the coordinate:\n");
+                        printf("\nInstructions on typing the coordinate:\n");
                         if (print_color) printf("\033[34;1m");
                         printf("Type the x-coordinate as letter(s) and the y-coordinate as digit(s) as shown at the edge of the field (order of coordinates is irrellevant, but without a space inbetween):\n");
                         if (print_color) printf("\033[0m\033[1m");
-                        printf(" <coordinate> = ( <letter> [<letter>] <firstDigit> [<digit>] ) | ( <firstDigit> [ <digit> ] <letter> [<letter>] )\n");
+                        printf(" <coordinate> = ( <letter> [<letter>] <firstDigit> [<digit>] ) | ( <firstDigit> [<digit>] <letter> [<letter>] )\n");
                         printf(" <letter> = 'A' | 'B' | ... | 'Z' | 'a' | 'b' | ... | 'z'\n");
                         printf(" <firstDigit> = '1' | '2' | ... | '9'\n");
-                        printf(" <digit> = '0' | <firstDigit>\n");
-                        if (print_color) printf("\033[34;1m");
+                        printf(" <digit> = '0' | <firstDigit>\n\n");
+                        if (print_color) printf("\033[32;1m");
                         printf("Instructions on typing the coordinate and direction/length for placing the ships:\n");
-                        printf("First type the coordinate as when only typing a coordinate, then type a space and then the direction with the number representing the ship's length and the other character representing the direction in which it should be placed from the coordinate:\n");
-                        if (print_color) printf("\033[0m\033[1m");
-                        printf(" <directLength> = <direction> <length> | <lenght> <direction>\n");
+                        if (print_color) printf("\033[34;1m");
+                        printf("First type the coordinate as when only typing a coordinate, then type a space and then the direction/length.\n");
+                        printf("The direction/length consists of a number representing the ship's length and the other character representing the direction in which it should be placed from the coordinate:\n");
+                        if (print_color) printf("\033[0m");
+                        printf("Note: if you do not type direction/length or only type the direction/length as '1' your ship has length 1 and is oriented east- / rightwards.\n");
+                        if (print_color) printf("\033[1m");
+                        printf(" <directLength> =  '1' | <direction> <length> | <length> <direction>\n");
                         printf(" <length> = <firstDigit> [<digit>]\n");
                         printf(" <direction> = 'R' | 'r' | 'E' | 'e' | '>'       for signaling the direction east- / rightwards.\n");
                         printf("               'L' | 'l' | 'W' | 'w' | '<'       for signaling the direction west- / leftwards.\n");
                         printf("               'U' | 'u' | 'E' | 'n' | '^'       for signaling the direction north- / upwards.\n");
-                        printf("               'D' | 'd' | 'S' | 's' | 'V' | 'v' for signaling the direction south- / downwards.\n");
+                        printf("               'D' | 'd' | 'S' | 's' | 'V' | 'v' for signaling the direction south- / downwards.\n\n");
+                        if (print_color) printf("\033[36;1m");
+                        printf("Type '/' to exit.\n\n");
                         if (print_color) printf("\033[0m");
                 } else {
                         if (print_color) printf("\033[31;1m");
@@ -585,7 +713,8 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
         return (c == '\n') ? SUCCESS_ENDL : SUCCESS;
 }
 
-/* returns direction passes length on through the pointer or returns negative number in case of error */
+/* returns direction passes length on through the pointer or returns negative number in case of error
+   NOTE: this function flushes the line even on a correct input */
 direction_t scan_direction(int *length, int maxShipLength, int print_color)
 {
         int direction = -1;
@@ -606,7 +735,7 @@ direction_t scan_direction(int *length, int maxShipLength, int print_color)
                         length_hold *= 10;
                         length_hold += c - '0';
                         c = toupper(getchar());
-                } 
+                }
                 if (length_hold < MIN_SHIP_LENGTH || maxShipLength < length_hold) {
                         if (print_color) printf("\033[31;1m");
                         if (length_hold < MIN_SHIP_LENGTH) {
@@ -620,6 +749,11 @@ direction_t scan_direction(int *length, int maxShipLength, int print_color)
                         }
                         return INPUT_ERROR_DIRECTION;
                 }
+        }
+        if (length_hold == 1) {
+                *length = length_hold;
+                if (c != '\n') flush_buff();
+                return RIGHT;
         }
         switch (c) {
                 case 'R': case 'E': case '>':
@@ -681,6 +815,7 @@ direction_t scan_direction(int *length, int maxShipLength, int print_color)
         }
         *length = length_hold;
 
+        flush_buff();
         return direction;
 }
 
@@ -733,8 +868,8 @@ status_t choose_ships(play_fields_t *fld)
                 }
                 if (print_color) printf("\033[1m");
                 printf("Choose where to place your ships, by typing the start coordinate and the direction, length of your ship.\n");
-                if (print_color) printf("\033[0m");
-                printf("  e.g. 'A1 2s' a ship at coordinate a1 with length 2 and facing southwards (for further information type '-h')\n");
+                if (print_color) printf("\033[0m  e.g. '\033[31mA\033[32m1 \033[33m2\033[34ms\033[0m' a ship at coordinate (\033[31mA\033[0m, \033[32m1\033[0m) with length \033[33m2\033[0m and facing down- / \033[34ms\033[0mouthwards (for further information type '\033[35m-h\033[0m')\n");
+                else printf("  e.g. 'A1 2s' a ship at coordinate (A, 1) with length 2 and facing down- / southwards (for further information type '-h')\n");
 
                 /* scan coordinate and direction, where ship should be placed */
                 status = scan_coordinate(&x, &y, nx, ny, print_color);
@@ -752,7 +887,6 @@ status_t choose_ships(play_fields_t *fld)
                                         printField = FALSE;
                                         continue;
                                 }
-                                flush_buff();
                                 break;
                         case EXIT:
                                 return EXIT;
@@ -819,25 +953,29 @@ status_t choose_ships(play_fields_t *fld)
                         continue;
                 }
 
-                /* place the ship onto the the boxes, by changing their state to UNHIT */
-                for (i = 0; i < length; ++i) {
-                        /* in-/decrease one coordinate by i based on the direction */
-                        switch (direction) {
-                                case RIGHT:
-                                        data_right[y][x + i] = UNHIT_HORIZ;
-                                        break;
-                                case DOWN:
-                                        data_right[y + i][x] = UNHIT_VERT;
-                                        break;
-                                case LEFT:
-                                        data_right[y][x - i] = UNHIT_HORIZ;
-                                        break;
-                                case UP:
-                                        data_right[y - i][x] = UNHIT_VERT;
-                                        break;
-                                default:
-                                        printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
-                                        return UNKNOWN_ERROR;
+                if (length == 1) {
+                        data_right[y][x] = UNHIT_SINGLE;
+                } else {
+                        /* place the ship onto the the boxes, by changing their state to UNHIT */
+                        for (i = 0; i < length; ++i) {
+                                /* in-/decrease one coordinate by i based on the direction */
+                                switch (direction) {
+                                        case RIGHT:
+                                                data_right[y][x + i] = ((i == 0) ? UNHIT_HORIZ_LEFT : ((i == length - 1) ? UNHIT_HORIZ_RIGHT : UNHIT_HORIZ));
+                                                break;
+                                        case DOWN:
+                                                data_right[y + i][x] = ((i == 0) ? UNHIT_VERT_TOP : ((i == length - 1) ? UNHIT_VERT_BOTTOM : UNHIT_VERT));
+                                                break;
+                                        case LEFT:
+                                                data_right[y][x - i] = ((i == 0) ? UNHIT_HORIZ_RIGHT : ((i == length - 1) ? UNHIT_HORIZ_LEFT : UNHIT_HORIZ));
+                                                break;
+                                        case UP:
+                                                data_right[y - i][x] = ((i == 0) ? UNHIT_VERT_BOTTOM : ((i == length - 1) ? UNHIT_VERT_TOP : UNHIT_VERT));
+                                                break;
+                                        default:
+                                                printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
+                                                return UNKNOWN_ERROR;
+                                }
                         }
                 }
                 /* decrement the number of length-long ships remaining */
@@ -913,15 +1051,19 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                         }
                         if (!is_free) continue;
 
-                        /* places the ship onto the the boxes, by changing their state to UNHIT */
-                        for (i = 0; i < length; ++i) {
-                                /* ships can only be RIGHT (= 0) or DOWN (= 1) */
-                                if (direction == DOWN) {
-                                        /* direction = DOWN */
-                                        data[y + i][x] = UNHIT_VERT;
-                                } else {
-                                        /* direction = RIGHT */
-                                        data[y][x + i] = UNHIT_HORIZ;
+                        if (length == 1) {
+                                data[y][x] = UNHIT_SINGLE;
+                        } else {
+                                /* places the ship onto the the boxes, by changing their state to UNHIT */
+                                for (i = 0; i < length; ++i) {
+                                        /* ships can only be RIGHT (= 0) or DOWN (= 1) */
+                                        if (direction == DOWN) {
+                                                /* direction = DOWN */
+                                                data[y + i][x] = ((i == 0) ? UNHIT_VERT_TOP : ((i == length - 1) ? UNHIT_VERT_BOTTOM : UNHIT_VERT));
+                                        } else {
+                                                /* direction = RIGHT */
+                                                data[y][x + i] = ((i == 0) ? UNHIT_HORIZ_LEFT : ((i == length - 1) ? UNHIT_HORIZ_RIGHT : UNHIT_HORIZ));
+                                        }
                                 }
                         }
                         /* decrements the number of ships left of the length "length" */
@@ -991,6 +1133,10 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], point_t 
                 }
                 --nShipsRemaining[i - y];
                 return TRUE;
+        } else if (is_single(battle_field[y][x])) {
+                battle_field[y][x] += SUNK_VERT - HIT_VERT;
+                --nShipsRemaining[1];
+                return TRUE;
         } else {
                 printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
                 return FALSE;
@@ -1034,21 +1180,17 @@ status_t player_shoot(play_fields_t *fld)
 
         point.x = x;
         point.y = y;
-        switch (data_left[y][x]) {
-                case NONE:
-                        data_left[y][x] = SPLASH_INVERT;
-                        return SUCCESS;
-                case UNHIT_VERT:
-                        data_left[y][x] = HIT_VERT_INVERT;
-                        test_ship_status(data_left, nShipsRemaining_left, point, nx, ny);
-                        return SUCCESS_HIT;
-                case UNHIT_HORIZ:
-                        data_left[y][x] = HIT_HORIZ_INVERT;
-                        test_ship_status(data_left, nShipsRemaining_left, point, nx, ny);
-                        return SUCCESS_HIT;
-                default:
-                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
-                        return UNKNOWN_ERROR;
+        if (data_left[y][x] == NONE) {
+                data_left[y][x] = SPLASH_INVERT;
+                return SUCCESS;
+        } else if (is_unhit(data_left[y][x])) {
+                data_left[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
+                data_left[y][x] = invert(data_left[y][x]);
+                test_ship_status(data_left, nShipsRemaining_left, point, nx, ny);
+                return SUCCESS_HIT;
+        } else {
+                printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
+                return UNKNOWN_ERROR;
         }
         return SUCCESS;
 }
@@ -1088,22 +1230,17 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
 
                 point.x = x;
                 point.y = y;
-                switch (data_right[y][x]) {
-                        case NONE:
-                                data_right[y][x] = SPLASH_INVERT;
-                                break;
-                        case UNHIT_VERT:
-                                data_right[y][x] = HIT_VERT_INVERT;
-                                test_ship_status(data_right, nShipsRemaining_right, point, nx, ny);
-                                break;
-                        case UNHIT_HORIZ:
-                                data_right[y][x] = HIT_HORIZ_INVERT;
-                                test_ship_status(data_right, nShipsRemaining_right, point, nx, ny);
-                                break;
-                        default:
-                                printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
-                                return;
+                if (data_right[y][x] == NONE) {
+                        data_right[y][x] = SPLASH_INVERT;
+                } else if (is_unhit(data_right[y][x])) {
+                        data_right[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
+                        data_right[y][x] = invert(data_right[y][x]);
+                        test_ship_status(data_right, nShipsRemaining_right, point, nx, ny);
+                } else {
+                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
+                        return;
                 }
+
                 if (fld->print_color) printf("\033[1m");
                 printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
                 if (fld->print_color) printf("\033[0m");
@@ -1171,6 +1308,12 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
         }
 #endif
 }
+#if 0
+/* Counts how many ships ships of which length hav how many hits */
+void countShipHits(const int **field, int **shipCount) {
+
+}
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -1398,11 +1541,11 @@ int main(int argc, char *argv[])
                                 if (field.print_color) {
                                         printf("\033[31;1;5m╭────────────────╮\n");
                                         printf("│ BOT has won!!! │\n");
-                                        printf("╰────────────────╯\033[0m");
+                                        printf("╰────────────────╯\033[0m\n");
                                 } else {
                                         printf("╭────────────────╮\n");
                                         printf("│ BOT has won!!! │\n");
-                                        printf("╰────────────────╯");
+                                        printf("╰────────────────╯\n");
                                 }
 
                         } else if (field.print_color) {
@@ -1420,19 +1563,57 @@ int main(int argc, char *argv[])
                 if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) break;
         }
 
-        if (field.print_color) printf("\033[32;1m");
+        if (field.print_color) printf("\033[32;1;4m");
         printf("\nPlayer's ships:\n");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) {
-                if (nShipsTotal[i])
-                        printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_right[i], nShipsTotal[i], i);
+        if (field.print_color) printf("\033[24m");
+        printf("length:|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i|", i);
+        printf("\n-------|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("---|");
+        printf("\n");
+        for (i = 0; i <= field.maxShipLength; ++i) {
+                int j;
+                printf("%2i hit%c|", i, (i == 1) ? ' ' : 's');
+                for (j = MIN_SHIP_LENGTH; j <= field.maxShipLength; ++j) {
+                        i == j ? printf("%3i|", nShipsTotal[i] - field.nShipsRemaining_right[i]) : printf(" / |");
+                        /*i > j ?  : ;*/
+                }
+                printf("\n");
+                /*if (nShipsTotal[i])
+                        printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_right[i], nShipsTotal[i], i);*/
         }
-        if (field.print_color) printf("\033[31;1m");
+        printf("-------|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("---|");
+        printf("\n  sum: |");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i|", nShipsTotal[i]);
+        printf("\n");
+
+        if (field.print_color) printf("\033[31;1;4m");
         printf("\nBot's ships:\n");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) {
-                if (nShipsTotal[i])
-                        printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_left[i], nShipsTotal[i], i);
+        if (field.print_color) printf("\033[24m");
+        printf("length:|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i|", i);
+        printf("\n-------|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("---|");
+        printf("\n");
+        for (i = 0; i <= field.maxShipLength; ++i) {
+                int j;
+                printf("%2i hit%c|", i, (i == 1) ? ' ' : 's');
+                for (j = MIN_SHIP_LENGTH; j <= field.maxShipLength; ++j) {
+                        i == j ? printf("%3i|", nShipsTotal[i] - field.nShipsRemaining_left[i]) : printf(" / |");
+                        /*i > j ?  : ;*/
+                }
+                printf("\n");
+                /*if (nShipsTotal[i])
+                        printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_left[i], nShipsTotal[i], i);*/
         }
+        printf("-------|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("---|");
+        printf("\n  sum: |");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i|", nShipsTotal[i]);
+        printf("\n\n");
         if (field.print_color) printf("\033[0m");
+
 
         free_field(&field);
 
