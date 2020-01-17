@@ -18,7 +18,9 @@
 /* number of ships (value) of each length (position in array)
    Number of elements in NUM_SHIPS_INIT should be equal to MAX_SHIP_LENGTH + 1 */
 #define NUM_SHIPS_INIT {0, 0, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+/* Initial longest ship */
 #define MAX_SHIP_LENGTH_INIT 5
+/* Total min / max ship length */
 #define MIN_SHIP_LENGTH 1
 #define MAX_SHIP_LENGTH 20
 
@@ -87,6 +89,10 @@ typedef enum {
 #define is_hit(box) ((HIT <= (box) && (box) <= HIT_SINGLE) || (HIT_INVERT <= (box) && (box) <= HIT_SINGLE_INVERT))
 #define is_sunk(box) ((SUNK_HORIZ <= (box) && (box) <= SUNK_SINGLE) || (SUNK_HORIZ_INVERT <= (box) && (box) <= SUNK_SINGLE_INVERT))
 #define is_ship(box) (is_unhit(box) || is_hit(box) || is_sunk(box))
+#define is_left(box) ((box) == UNHIT_HORIZ_LEFT || (box) == HIT_HORIZ_LEFT || (box) == SUNK_HORIZ_LEFT || (box) == UNHIT_HORIZ_LEFT_INVERT || (box) == HIT_HORIZ_LEFT_INVERT || (box) == SUNK_HORIZ_LEFT_INVERT)
+#define is_right(box) ((box) == UNHIT_HORIZ_RIGHT || (box) == HIT_HORIZ_RIGHT || (box) == SUNK_HORIZ_RIGHT || (box) == UNHIT_HORIZ_RIGHT_INVERT || (box) == HIT_HORIZ_RIGHT_INVERT || (box) == SUNK_HORIZ_RIGHT_INVERT)
+#define is_top(box) ((box) == UNHIT_VERT_TOP || (box) == HIT_VERT_TOP || (box) == SUNK_VERT_TOP || (box) == UNHIT_VERT_TOP_INVERT || (box) == HIT_VERT_TOP_INVERT || (box) == SUNK_VERT_TOP_INVERT)
+#define is_bottom(box) ((box) == UNHIT_VERT_BOTTOM || (box) == HIT_VERT_BOTTOM || (box) == SUNK_VERT_BOTTOM || (box) == UNHIT_VERT_BOTTOM_INVERT || (box) == HIT_VERT_BOTTOM_INVERT || (box) == SUNK_VERT_BOTTOM_INVERT)
 #define has_been_shot(box) ((box) == SPLASH || (box) == SPLASH_INVERT || is_hit(box) || is_sunk(box))
 #define is_horiz(box) ((UNHIT_HORIZ <= (box) && (box) <= UNHIT_HORIZ_RIGHT) || (HIT_HORIZ <= (box) && (box) <= HIT_HORIZ_RIGHT) || (SUNK_HORIZ <= (box) && (box) <= SUNK_HORIZ_RIGHT) || (UNHIT_HORIZ_INVERT <= (box) && (box) <= UNHIT_HORIZ_RIGHT_INVERT) || (HIT_HORIZ_INVERT <= (box) && (box) <= HIT_HORIZ_RIGHT_INVERT) || (SUNK_HORIZ_INVERT <= (box) && (box) <= SUNK_HORIZ_RIGHT_INVERT))
 #define is_vert(box) ((UNHIT_VERT <= (box) && (box) <= UNHIT_VERT_BOTTOM) || (HIT_VERT <= (box) && (box) <= HIT_VERT_BOTTOM) || (SUNK_VERT <= (box) && (box) <= SUNK_VERT_BOTTOM) || (UNHIT_VERT_INVERT <= (box) && (box) <= UNHIT_VERT_BOTTOM_INVERT) || (HIT_VERT_INVERT <= (box) && (box) <= HIT_VERT_BOTTOM_INVERT) || (SUNK_VERT_INVERT <= (box) && (box) <= SUNK_VERT_BOTTOM_INVERT))
@@ -201,7 +207,7 @@ static const char *const rowFormats_utf[] =
 };
 
 /* ansi-colors:
-  set color: \033[<clr>{;<clr>}>m
+  set color: '\033[' <clr> { ';' <clr> } 'm'
     <clr>: https://en.wikipedia.org/wiki/ANSI_escape_code#3/4_bit
            https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters
 
@@ -487,10 +493,13 @@ void print_field(play_fields_t *fld)
                         int row;
                         /* title: e.g.:     BOT's ships     */
                         if (!players_field) {
+                                if (print_color) printf("\033[31;1m");
                                 printf("\n%*s%*s\n", (nCharsX + (int)strlen(bot_title)) / 2, bot_title, nCharsX - (nCharsX + (int)strlen(bot_title)) / 2, "");
                         } else {
+                                if (print_color) printf("\033[32;1m");
                                 printf("%*s%*s\n", (nCharsX + (int)strlen(player_title)) / 2, player_title, nCharsX - (nCharsX + (int)strlen(player_title)) / 2, "");
                         }
+                        if (print_color) printf("\033[0m");
                         /* top row:   | A | B |...*/
                         print_top_row(nx, print_utf);
                         printf("\n");
@@ -513,9 +522,13 @@ void print_field(play_fields_t *fld)
         } else {
                 int row;
                 /* title: e.g.:     BOT's ships     */
+                if (print_color) printf("\033[31;1m");
                 printf("\n%*s%*s", (nCharsX + (int)strlen(bot_title)) / 2, bot_title, nCharsX - (nCharsX + (int)strlen(bot_title)) / 2, "");
                 print_gap();
+                if (print_color) printf("\033[32;1m");
                 printf("%*s%*s\n", (nCharsX + (int)strlen(player_title)) / 2, player_title, nCharsX - (nCharsX + (int)strlen(player_title)) / 2, "");
+                if (print_color) printf("\033[0m");
+
                 /* top row:   | A | B |...          | A | B |... */
                 print_top_row(nx, print_utf);
                 print_gap();
@@ -1308,12 +1321,45 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
         }
 #endif
 }
-#if 0
-/* Counts how many ships ships of which length hav how many hits */
-void countShipHits(const int **field, int **shipCount) {
 
+/* Counts how many ships ships of which length have how many hits */
+void countShipHits(shipstate_t **field, int nx, int ny, int shipCount[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1]) {
+        int i;
+        int y;
+        for (i = 0; i <= MAX_SHIP_LENGTH; ++i) {
+                int j;
+                for (j = 0; j <= MAX_SHIP_LENGTH; ++j) {
+                        shipCount[i][j] = 0;
+                }
+        }
+        for (y = 0; y < ny; ++y) {
+                int x;
+                for (x = 0; x < nx; ++x) {
+                        if (is_left(field[y][x])) {
+                                int length = 0, n_hits = 0;
+                                do  {
+                                        if (has_been_shot(field[y][x + length])) {
+                                                ++n_hits;
+                                        }
+                                        ++length;
+                                } while (!is_right(field[y][x + length - 1]));
+                                ++shipCount[length][n_hits];
+                        } else if (is_top(field[y][x])) {
+                                int length = 0, n_hits = 0;
+                                do {
+                                        if (has_been_shot(field[y + length][x])) {
+                                                ++n_hits;
+                                        }
+                                        ++length;
+                                } while (!is_bottom(field[y + length - 1][x]));
+                                ++shipCount[length][n_hits];
+                        } else if (is_single(field[y][x])) {
+                                has_been_shot(field[x][y]) ? ++shipCount[1][1] : ++shipCount[1][0];
+                        }
+                }
+        }
 }
-#endif
+
 
 int main(int argc, char *argv[])
 {
@@ -1321,6 +1367,9 @@ int main(int argc, char *argv[])
         int i, auto_choose = FALSE, difficulty = 50;
         status_t status;
         int nShipsTotal[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
+        /* ship_count[<length>][<n_hits>] corresponds to the number of ships of length <length> that have been hit <n_hits> times */
+        int ship_count_left[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
+        int ship_count_right[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
         /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
         play_fields_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, MAX_SHIP_LENGTH_INIT, NULL, NULL, FALSE, FALSE, FALSE};
         memcpy(field.nShipsRemaining_left, nShipsTotal, (MAX_SHIP_LENGTH + 1) * sizeof(int));
@@ -1509,26 +1558,18 @@ int main(int argc, char *argv[])
                         }
                         if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength)) {
                                 print_field(&field);
+                                if (field.print_color) printf("\033[32;1;5m");
                                 if (field.print_utf) {
-                                        if (field.print_color) {
-                                                printf("\033[32;1;5m╭───────────────────╮\n");
-                                                printf("│ PLAYER has won!!! │\n");
-                                                printf("╰───────────────────╯\033[0m\n");
-                                        } else {
-                                                printf("╭───────────────────╮\n");
-                                                printf("│ PLAYER has won!!! │\n");
-                                                printf("╰───────────────────╯\n");
-                                        }
+                                        printf("╭───────────────────╮\n");
+                                        printf("│ PLAYER has won!!! │\n");
+                                        printf("╰───────────────────╯\n");
 
-                                } else if (field.print_color) {
-                                        printf("\033[32;1;5m/-------------------\\\n");
-                                        printf("| PLAYER has won!!! |\n");
-                                        printf("\\-------------------/\033[0m\n");
                                 } else {
                                         printf("/-------------------\\\n");
                                         printf("| PLAYER has won!!! |\n");
                                         printf("\\-------------------/\n");
                                 }
+                                if (field.print_color) printf("\033[0m");
                                 break;
                         }
                 } while (status == SUCCESS_HIT);
@@ -1537,80 +1578,72 @@ int main(int argc, char *argv[])
                 bot_shoot(&field, difficulty);
                 if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) {
                         print_field(&field);
+                        if (field.print_color) printf("\033[31;1;5m");
                         if (field.print_utf) {
-                                if (field.print_color) {
-                                        printf("\033[31;1;5m╭────────────────╮\n");
-                                        printf("│ BOT has won!!! │\n");
-                                        printf("╰────────────────╯\033[0m\n");
-                                } else {
-                                        printf("╭────────────────╮\n");
-                                        printf("│ BOT has won!!! │\n");
-                                        printf("╰────────────────╯\n");
-                                }
-
+                                printf("╭────────────────╮\n");
+                                printf("│ BOT has won!!! │\n");
+                                printf("╰────────────────╯\n");
                         } else if (field.print_color) {
-                                printf("\033[31;1;5m/----------------\\\n");
-                                printf("| BOT has won!!! |\n");
-                                printf("\\----------------/\033[0m\n");
-
-                        } else {
                                 printf("/----------------\\\n");
                                 printf("| BOT has won!!! |\n");
                                 printf("\\----------------/\n");
                         }
+                        if (field.print_color) printf("\033[0m");
                         break;
                 }
                 if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) break;
         }
 
+        /* ship_count[<length>][<n_hits>] corresponds to the number of ships of length <length> that have been hit <n_hits> times */
+        countShipHits(field.data_left, field.nx, field.ny, ship_count_left);
+        countShipHits(field.data_right, field.nx, field.ny, ship_count_right);
+
         if (field.print_color) printf("\033[32;1;4m");
         printf("\nPlayer's ships:\n");
         if (field.print_color) printf("\033[24m");
-        printf("length:|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i|", i);
-        printf("\n-------|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("---|");
+        printf("length:%s", field.print_utf ? "│" : "|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i%s", i, field.print_utf ? "│" : "|");
+        field.print_utf ? printf("\n───────┼") : printf("\n-------|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) field.print_utf ? printf("───%s", (i == field.maxShipLength) ? "┤" : "┼") : printf("---|");
         printf("\n");
         for (i = 0; i <= field.maxShipLength; ++i) {
-                int j;
-                printf("%2i hit%c|", i, (i == 1) ? ' ' : 's');
-                for (j = MIN_SHIP_LENGTH; j <= field.maxShipLength; ++j) {
-                        i == j ? printf("%3i|", nShipsTotal[i] - field.nShipsRemaining_right[i]) : printf(" / |");
-                        /*i > j ?  : ;*/
+                int length;
+                printf("%2i hit%c%s", i, (i == 1) ? ' ' : 's', field.print_utf ? "│" : "|");
+                for (length = MIN_SHIP_LENGTH; length <= field.maxShipLength; ++length) {
+                        if (i < length) printf("%3i%s", ship_count_right[length][i], field.print_utf ? "│" : "|");
+                        else if (i == length) field.print_color ? printf("\033[35m%3i\033[32m%s", ship_count_right[length][i], field.print_utf ? "│" : "|") : printf("%3i%s", ship_count_right[length][i], field.print_utf ? "│" : "|");
+                        else printf("   %s", field.print_utf ? "│" : "|");
                 }
                 printf("\n");
-                /*if (nShipsTotal[i])
-                        printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_right[i], nShipsTotal[i], i);*/
         }
-        printf("-------|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("---|");
-        printf("\n  sum: |");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i|", nShipsTotal[i]);
+        field.print_utf ? printf("───────┼") : printf("-------|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) field.print_utf ? printf("───%s", (i == field.maxShipLength) ? "┤" : "┼") : printf("---|");
+        printf("\n  sum: %s", field.print_utf ? "│" : "|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i%s", nShipsTotal[i], field.print_utf ? "│" : "|");
         printf("\n");
 
         if (field.print_color) printf("\033[31;1;4m");
         printf("\nBot's ships:\n");
         if (field.print_color) printf("\033[24m");
-        printf("length:|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i|", i);
-        printf("\n-------|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("---|");
+        printf("length:%s", field.print_utf ? "│" : "|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i%s", i, field.print_utf ? "│" : "|");
+        field.print_utf ? printf("\n───────┼") : printf("\n-------|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) field.print_utf ? printf("───%s", (i == field.maxShipLength) ? "┤" : "┼") : printf("---|");
         printf("\n");
         for (i = 0; i <= field.maxShipLength; ++i) {
-                int j;
-                printf("%2i hit%c|", i, (i == 1) ? ' ' : 's');
-                for (j = MIN_SHIP_LENGTH; j <= field.maxShipLength; ++j) {
-                        i == j ? printf("%3i|", nShipsTotal[i] - field.nShipsRemaining_left[i]) : printf(" / |");
-                        /*i > j ?  : ;*/
+                int length;
+                printf("%2i hit%c%s", i, (i == 1) ? ' ' : 's', field.print_utf ? "│" : "|");
+                for (length = MIN_SHIP_LENGTH; length <= field.maxShipLength; ++length) {
+                        if (i < length) printf("%3i%s", ship_count_left[length][i], field.print_utf ? "│" : "|");
+                        else if (i == length) field.print_color ? printf("\033[35m%3i\033[31m%s", ship_count_left[length][i], field.print_utf ? "│" : "|") : printf("%3i%s", ship_count_left[length][i], field.print_utf ? "│" : "|");
+                        else printf("   %s", field.print_utf ? "│" : "|");
                 }
                 printf("\n");
-                /*if (nShipsTotal[i])
-                        printf("    %i of %i length %i ships still floating\n", field.nShipsRemaining_left[i], nShipsTotal[i], i);*/
         }
-        printf("-------|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("---|");
-        printf("\n  sum: |");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i|", nShipsTotal[i]);
+        field.print_utf ? printf("───────┼") : printf("-------|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) field.print_utf ? printf("───%s", (i == field.maxShipLength) ? "┤" : "┼") : printf("---|");
+        printf("\n  sum: %s", field.print_utf ? "│" : "|");
+        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i%s", nShipsTotal[i], field.print_utf ? "│" : "|");
         printf("\n\n");
         if (field.print_color) printf("\033[0m");
 
