@@ -26,6 +26,13 @@
 
 /* The gap between left and right fields */
 #define print_gap() (printf("        "))
+#define printh_stat_line(print_utf, max_ship_length) \
+{\
+        int length;\
+        print_utf ? printf("───────┼") : printf("-------|");\
+        for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) print_utf ? printf("───%s", (length == max_ship_length) ? "┤" : "┼") : printf("---|");\
+}
+
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
@@ -102,7 +109,7 @@ typedef enum {
 #define invert(box) (is_invert(box) ? (box - INVERT_DIFF) : (box + INVERT_DIFF))
 #define remove_invert(box) ((box) % INVERT_DIFF)
 
-static const char *const rowFormats[] =
+static const char *const row_formats[] =
 {
         "   |",         /* 0: unhit - water */
         "~~~|",         /* 1: hit water */
@@ -154,7 +161,7 @@ static const char *const rowFormats[] =
         "(+)|"          /* 47: sunken ship of the lenght 1 */
 };
 
-static const char *const rowFormats_utf[] =
+static const char *const row_formats_utf[] =
 {
         "   │",         /* 0: unhit - water */
         "≈≈≈│",         /* 1: hit water */
@@ -213,7 +220,7 @@ static const char *const rowFormats_utf[] =
 
   unset color: \033[0m
 */
-static const char *const rowFormats_color[] =
+static const char *const row_formats_color[] =
 {
         "   |",                         /* 0: unhit - water */
         "\033[34;1m~~~\033[0m|",        /* 1: hit water */
@@ -265,7 +272,7 @@ static const char *const rowFormats_color[] =
         "\033[35;1;7m(+)\033[0m|"      /* 47: sunken ship of the lenght 1 */
 };
 
-static const char *const rowFormats_color_utf[] =
+static const char *const row_formats_color_utf[] =
 {
         "   │",                         /* 0: unhit - water */
         "\033[34;1m≈≈≈\033[0m│",        /* 1: hit water */
@@ -342,9 +349,9 @@ typedef struct {
         int nx;
         int ny;
         /* num_of_ship_left[i] is the number of i long ships left */
-        int nShipsRemaining_left[MAX_SHIP_LENGTH + 1];
-        int nShipsRemaining_right[MAX_SHIP_LENGTH + 1];
-        int maxShipLength;
+        int n_ships_remaining_left[MAX_SHIP_LENGTH + 1];
+        int n_ships_remaining_right[MAX_SHIP_LENGTH + 1];
+        int max_ship_length;
         /* 0 = unhit water, 1 = hit water, 2 = unhit ship, 3 = hit ship, 4 = sunken ship*/
         shipstate_t **data_left;
         shipstate_t **data_right;
@@ -458,14 +465,14 @@ void print_row(shipstate_t row[], int nx, int row_num, int is_left_field, int pr
 #endif
                 if (print_color) {
                         if (print_utf) {
-                                printf(rowFormats_color_utf[state]);
+                                printf(row_formats_color_utf[state]);
                         } else {
-                                printf(rowFormats_color[state]);
+                                printf(row_formats_color[state]);
                         }
                 } else if (print_utf) {
-                        printf(rowFormats_utf[state]);
+                        printf(row_formats_utf[state]);
                 } else {
-                        printf(rowFormats[state]);
+                        printf(row_formats[state]);
                 }
 
                 row[coli] = remove_invert(row[coli]);
@@ -483,6 +490,7 @@ void print_field(play_fields_t *fld)
         const int print_vertical = fld->print_vertical;
         const int print_color = fld->print_color;
         const int print_utf = fld->print_utf;
+
         const char bot_title[] = "BOT's ships";
         const char player_title[] = "PLAYER's ships";
         const int nCharsX = 4 * nx + 3;
@@ -554,6 +562,155 @@ void print_field(play_fields_t *fld)
         }
 }
 
+/* Counts how many ships ships of which length have how many hits */
+void countShipHits(shipstate_t **field, int nx, int ny, int shipCount[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1]) {
+        int i;
+        int y;
+        for (i = 0; i <= MAX_SHIP_LENGTH; ++i) {
+                int j;
+                for (j = 0; j <= MAX_SHIP_LENGTH; ++j) {
+                        shipCount[i][j] = 0;
+                }
+        }
+        for (y = 0; y < ny; ++y) {
+                int x;
+                for (x = 0; x < nx; ++x) {
+                        if (is_left(field[y][x])) {
+                                int length = 0, n_hits = 0;
+                                do  {
+                                        if (has_been_shot(field[y][x + length])) {
+                                                ++n_hits;
+                                        }
+                                        ++length;
+                                } while (!is_right(field[y][x + length - 1]));
+                                ++shipCount[length][n_hits];
+                        } else if (is_top(field[y][x])) {
+                                int length = 0, n_hits = 0;
+                                do {
+                                        if (has_been_shot(field[y + length][x])) {
+                                                ++n_hits;
+                                        }
+                                        ++length;
+                                } while (!is_bottom(field[y + length - 1][x]));
+                                ++shipCount[length][n_hits];
+                        } else if (is_single(field[y][x])) {
+                                has_been_shot(field[x][y]) ? ++shipCount[1][1] : ++shipCount[1][0];
+                        }
+                }
+        }
+}
+
+void print_stats(play_fields_t *fld, int n_ships_total[])
+{
+        /* copies of the struct values */
+        const int nx = fld->nx;
+        const int ny = fld->ny;
+        const int max_ship_length = fld->max_ship_length;
+        shipstate_t **data_left = fld->data_left;
+        shipstate_t **data_right = fld->data_right;
+        const int print_vertical = fld->print_vertical;
+        const int print_color = fld->print_color;
+        const int print_utf = fld->print_utf;
+
+        const char bot_title[] = "BOT's ships";
+        const char player_title[] = "PLAYER's ships";
+        const int nCharsX = 4 * max_ship_length + 8;
+        char vert_bar[sizeof("│")];
+        int length, n_hits;
+
+        strcpy(vert_bar, print_utf ? "│" : "|");
+
+
+        if (print_vertical) {
+                /* ship_count[<length>][<n_hits>] corresponds to the number of ships of length <length> that have been hit <n_hits> times */
+                int ship_count[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
+                int players_field;
+                for (players_field = 0; players_field <= 1; ++players_field) {
+                        if (!players_field) {
+                                countShipHits(data_left, nx, ny, ship_count);
+                                if (print_color) printf("\033[31;1m");
+                                printf("\n%*s%*s\n", (nCharsX + (int)strlen(bot_title)) / 2, bot_title, nCharsX - (nCharsX + (int)strlen(bot_title)) / 2, "");
+                                if (print_color) printf("\033[0m");
+                        } else {
+                                countShipHits(data_right, nx, ny, ship_count);
+                                if (print_color) printf("\033[32;1m");
+                                printf("\n%*s%*s\n", (nCharsX + (int)strlen(player_title)) / 2, player_title, nCharsX - (nCharsX + (int)strlen(player_title)) / 2, "");
+                                if (print_color) printf("\033[0m");
+                        }
+
+                        printf("%slength:%s%s", print_color ? "\033[1m" : "", print_color ? "\033[0m" : "", vert_bar);
+                        for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) printf("%3i%s", length, vert_bar);
+
+                        printf("\n");
+                        printh_stat_line(print_utf, max_ship_length);
+                        printf("\n");
+                        for (n_hits = 0; n_hits <= max_ship_length; ++n_hits) {
+                                printf("%s%2i hit%c%s%s", print_color ? "\033[1m" : "", n_hits, (n_hits == 1) ? ' ' : 's', print_color ? "\033[0m" : "", vert_bar);
+                                for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) {
+                                        if (n_hits <= length) print_color ? printf("\033[%sm%3i\033[0m%s", (n_hits == length ? "35" : "31"), ship_count[length][n_hits], vert_bar) : printf("%3i%s", ship_count[length][n_hits], vert_bar);
+                                        else printf("   %s", vert_bar);
+                                }
+                                printf("\n");
+                        }
+                        printh_stat_line(print_utf, max_ship_length);
+                        printf("\n%s  sum: %s%s", print_color ? "\033[1m" : "", print_color ? "\033[0m" : "", vert_bar);
+                        for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) printf("%3i%s", n_ships_total[length], vert_bar);
+                        printf("\n");
+                }
+        } else {
+                /* ship_count[<length>][<n_hits>] corresponds to the number of ships of length <length> that have been hit <n_hits> times */
+                int ship_count_left[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
+                int ship_count_right[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
+                countShipHits(data_left, nx, ny, ship_count_left);
+                countShipHits(data_right, nx, ny, ship_count_right);
+
+                /* title: e.g.:     BOT's ships     */
+                if (print_color) printf("\033[31;1m");
+                printf("\n%*s%*s", (nCharsX + (int)strlen(bot_title)) / 2, bot_title, nCharsX - (nCharsX + (int)strlen(bot_title)) / 2, "");
+                print_gap();
+                if (print_color) printf("\033[32;1m");
+                printf("%*s%*s\n", (nCharsX + (int)strlen(player_title)) / 2, player_title, nCharsX - (nCharsX + (int)strlen(player_title)) / 2, "");
+                if (print_color) printf("\033[0m");
+
+                printf("%slength:%s%s", print_color ? "\033[1m" : "", print_color ? "\033[0m" : "", vert_bar);
+                for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) printf("%3i%s", length, vert_bar);
+                print_gap();
+                printf("%slength:%s%s", print_color ? "\033[1m" : "", print_color ? "\033[0m" : "", vert_bar);
+                for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) printf("%3i%s", length, vert_bar);
+
+                printf("\n");
+                printh_stat_line(print_utf, max_ship_length);
+                print_gap();
+                printh_stat_line(print_utf, max_ship_length);
+                printf("\n");
+
+                for (n_hits = 0; n_hits <= max_ship_length; ++n_hits) {
+                        printf("%s%2i hit%c%s%s", print_color ? "\033[1m" : "", n_hits, (n_hits == 1) ? ' ' : 's', print_color ? "\033[0m" : "", vert_bar);
+                        for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) {
+                                if (n_hits <= length) print_color ? printf("\033[%sm%3i\033[0m%s", (n_hits == length ? "35" : "31"), ship_count_left[length][n_hits], vert_bar) : printf("%3i%s", ship_count_left[length][n_hits], vert_bar);
+                                else printf("   %s", vert_bar);
+                        }
+                        print_gap();
+                        printf("%s%2i hit%c%s%s", print_color ? "\033[1m" : "", n_hits, (n_hits == 1) ? ' ' : 's', print_color ? "\033[0m" : "", vert_bar);
+                        for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) {
+                                if (n_hits <= length) print_color ? printf("\033[%sm%3i\033[0m%s", (n_hits == length ? "35" : "32"), ship_count_right[length][n_hits], vert_bar) : printf("%3i%s", ship_count_right[length][n_hits], vert_bar);
+                                else printf("   %s", vert_bar);
+                        }
+                        printf("\n");
+                }
+                printh_stat_line(print_utf, max_ship_length);
+                print_gap();
+                printh_stat_line(print_utf, max_ship_length);
+
+                printf("\n%s  sum: %s%s", print_color ? "\033[1m" : "", print_color ? "\033[0m" : "", vert_bar);
+                for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) print_color ? printf("\033[31m%3i\033[0m%s", n_ships_total[length], vert_bar) : printf("%3i%s", n_ships_total[length], vert_bar);
+                print_gap();
+                printf("%s  sum: %s%s", print_color ? "\033[1m" : "", print_color ? "\033[0m" : "", vert_bar);
+                for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) print_color ? printf("\033[32m%3i\033[0m%s", n_ships_total[length], vert_bar) : printf("%3i%s", n_ships_total[length], vert_bar);
+                printf("\n\n");
+        }
+}
+
 status_t flush_buff()
 {
         int c;
@@ -611,7 +768,7 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
                         printf("\nInstructions on typing the coordinate:\n");
                         if (print_color) printf("\033[34;1m");
                         printf("Type the x-coordinate as letter(s) and the y-coordinate as digit(s) as shown at the edge of the field (order of coordinates is irrellevant, but without a space inbetween):\n");
-                        if (print_color) printf("\033[0m\033[1m");
+                        if (print_color) printf("\033[0;1m");
                         printf(" <coordinate> = ( <letter> [<letter>] <firstDigit> [<digit>] ) | ( <firstDigit> [<digit>] <letter> [<letter>] )\n");
                         printf(" <letter> = 'A' | 'B' | ... | 'Z' | 'a' | 'b' | ... | 'z'\n");
                         printf(" <firstDigit> = '1' | '2' | ... | '9'\n");
@@ -728,7 +885,7 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
 
 /* returns direction passes length on through the pointer or returns negative number in case of error
    NOTE: this function flushes the line even on a correct input */
-direction_t scan_direction(int *length, int maxShipLength, int print_color)
+direction_t scan_direction(int *length, int max_ship_length, int print_color)
 {
         int direction = -1;
         int length_hold = 0;
@@ -749,7 +906,7 @@ direction_t scan_direction(int *length, int maxShipLength, int print_color)
                         length_hold += c - '0';
                         c = toupper(getchar());
                 }
-                if (length_hold < MIN_SHIP_LENGTH || maxShipLength < length_hold) {
+                if (length_hold < MIN_SHIP_LENGTH || max_ship_length < length_hold) {
                         if (print_color) printf("\033[31;1m");
                         if (length_hold < MIN_SHIP_LENGTH) {
                                 printf("Input Error: Your ship length '%i' is too small\n", length_hold);
@@ -785,7 +942,7 @@ direction_t scan_direction(int *length, int maxShipLength, int print_color)
                         if (print_color) printf("\033[31;1m");
                         if (c == '\n') printf("Input Error: Missing direction.\n");
                         else printf("Input Error: Invalid direction: '%c'.\n", c);
-                        if (print_color) printf("\033[0m\033[1m");
+                        if (print_color) printf("\033[0;1m");
                         printf("Use: 'R' | 'r' | 'E' | 'e' | '>'       for signaling the direction east- / rightwards.\n");
                         printf("     'L' | 'l' | 'W' | 'w' | '<'       for signaling the direction west- / leftwards.\n");
                         printf("     'U' | 'u' | 'E' | 'n' | '^'       for signaling the direction north- / upwards.\n");
@@ -802,7 +959,7 @@ direction_t scan_direction(int *length, int maxShipLength, int print_color)
                         length_hold *= 10;
                         length_hold += c - '0';
                 }
-                if (length_hold < MIN_SHIP_LENGTH || maxShipLength < length_hold) {
+                if (length_hold < MIN_SHIP_LENGTH || max_ship_length < length_hold) {
                         if (print_color) printf("\033[31;1m");
                         if (length_hold < MIN_SHIP_LENGTH) {
                                 printf("Input Error: Your ship length '%i' is too small\n", length_hold);
@@ -839,13 +996,13 @@ status_t choose_ships(play_fields_t *fld)
         const int ny = fld->ny;
         const int print_color = fld->print_color;
         shipstate_t **data_right = fld->data_right;
-        const int maxShipLength = fld->maxShipLength;
-        /* nShipsRemaining[i] is the number of i long ships left */
-        int nShipsRemaining[MAX_SHIP_LENGTH + 1];
+        const int max_ship_length = fld->max_ship_length;
+        /* n_ships_remaining[i] is the number of i long ships left */
+        int n_ships_remaining[MAX_SHIP_LENGTH + 1];
         /* if the last user-input had an INPUT-ERROR the field should not be reprinted */
         int printField = TRUE;
         /* using "nRemainingShips" as scratch space */
-        memcpy(nShipsRemaining, fld->nShipsRemaining_right, sizeof(nShipsRemaining));
+        memcpy(n_ships_remaining, fld->n_ships_remaining_right, sizeof(n_ships_remaining));
 
         /* loop-condition checks whether there is still ships, that have not been set */
         while (1) {
@@ -858,8 +1015,8 @@ status_t choose_ships(play_fields_t *fld)
                 {
                         /* scan to see if any ships are still remaining (not sunk) */
                         int anyShips = FALSE;
-                        for (i = MIN_SHIP_LENGTH; i <= maxShipLength && !anyShips; ++i) {
-                                anyShips = nShipsRemaining[i];
+                        for (i = MIN_SHIP_LENGTH; i <= max_ship_length && !anyShips; ++i) {
+                                anyShips = n_ships_remaining[i];
                         }
                         if (!anyShips) {
                                 break;
@@ -869,9 +1026,9 @@ status_t choose_ships(play_fields_t *fld)
                         print_field(fld);
                         if (print_color) printf("\033[1m");
                         printf("You have ");
-                        for (i = maxShipLength; i >= MIN_SHIP_LENGTH; --i) {
-                                if (nShipsRemaining[i]) {
-                                        printf("%i battle ship%s (length %i) ", nShipsRemaining[i], nShipsRemaining[i] == 1 ? "" : "s", i);
+                        for (i = max_ship_length; i >= MIN_SHIP_LENGTH; --i) {
+                                if (n_ships_remaining[i]) {
+                                        printf("%i battle ship%s (length %i) ", n_ships_remaining[i], n_ships_remaining[i] == 1 ? "" : "s", i);
                                 }
                         }
                         printf("remaining\n");
@@ -892,7 +1049,7 @@ status_t choose_ships(play_fields_t *fld)
                                 length = 1;
                                 break;
                         case SUCCESS:
-                                direction = scan_direction(&length, maxShipLength, print_color);
+                                direction = scan_direction(&length, max_ship_length, print_color);
                                 if (direction == BUFFER_ERROR_DIRECTION) {
                                         printf("BUFFER ERROR - %s line %i\n", __FILE__, __LINE__);
                                         return BUFFER_ERROR;
@@ -912,7 +1069,7 @@ status_t choose_ships(play_fields_t *fld)
                 }
 
                 /* check if there are ships of the selected length left */
-                if (length > maxShipLength || nShipsRemaining[length] <= 0) {
+                if (length > max_ship_length || n_ships_remaining[length] <= 0) {
                         if (print_color) printf("\033[31;1m");
                         printf("You don't have any ship with the length %i left to place.\n", length);
                         if (print_color) printf("\033[0m");
@@ -992,26 +1149,26 @@ status_t choose_ships(play_fields_t *fld)
                         }
                 }
                 /* decrement the number of length-long ships remaining */
-                --nShipsRemaining[length];
+                --n_ships_remaining[length];
         }
         return SUCCESS;
 }
 
-status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *nShipsRemaining, int maxShipLength)
+status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *n_ships_remaining, int max_ship_length)
 {
 
         int length;
         /* number of times the field was reset, because of ship-jamming */
         int numOfReTries = 0;
-        /* nShipsRemaining_cpy[i] is the number of i long ships left */
-        int nShipsRemaining_cpy[MAX_SHIP_LENGTH + 1];
+        /* n_ships_remaining_cpy[i] is the number of i long ships left */
+        int n_ships_remaining_cpy[MAX_SHIP_LENGTH + 1];
         /* using "nRemainingShips" as scratch space */
-        memcpy(nShipsRemaining_cpy, nShipsRemaining, sizeof(nShipsRemaining_cpy));
+        memcpy(n_ships_remaining_cpy, n_ships_remaining, sizeof(n_ships_remaining_cpy));
 
         /* populate with ships - place longest ships first, while there still is enough room */
-        for (length = maxShipLength; length >= MIN_SHIP_LENGTH; --length) {
+        for (length = max_ship_length; length >= MIN_SHIP_LENGTH; --length) {
                 int numOfTries = 0;
-                while (nShipsRemaining_cpy[length]) {
+                while (n_ships_remaining_cpy[length]) {
                         int i;
                         /* ships can only be set RIGHT (= 0) or DOWN (= 1) */
                         const direction_t direction = rand() % 2;
@@ -1028,8 +1185,8 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                                         return INPUT_ERROR;
                                 }
                                 /* reset variables */
-                                length = maxShipLength + 1;
-                                memcpy(nShipsRemaining_cpy, nShipsRemaining, sizeof(nShipsRemaining_cpy));
+                                length = max_ship_length + 1;
+                                memcpy(n_ships_remaining_cpy, n_ships_remaining, sizeof(n_ships_remaining_cpy));
                                 for (i = 0; i < nx; ++i) {
                                         int j;
                                         for (j = 0; j < nx; ++j) {
@@ -1080,23 +1237,23 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                                 }
                         }
                         /* decrements the number of ships left of the length "length" */
-                        --nShipsRemaining_cpy[length];
+                        --n_ships_remaining_cpy[length];
                 }
         }
         return SUCCESS;
 }
 
-int has_somemone_won(int *nShipsRemaining, int maxShipLength)
+int has_somemone_won(int *n_ships_remaining, int max_ship_length)
 {
         int shipLen;
-        for (shipLen = MIN_SHIP_LENGTH; shipLen <= maxShipLength; ++shipLen) {
-                if (nShipsRemaining[shipLen] != 0)
+        for (shipLen = MIN_SHIP_LENGTH; shipLen <= max_ship_length; ++shipLen) {
+                if (n_ships_remaining[shipLen] != 0)
                         return FALSE;
         }
         return TRUE;
 }
 
-int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], point_t position, int nx, int ny)
+int test_ship_status(int nx, int ny, int n_ships_remaining[], shipstate_t **battle_field, point_t position)
 {
         int x = position.x;
         int y = position.y;
@@ -1123,7 +1280,7 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], point_t 
                 for (i = x; ((i < nx) && is_ship(battle_field[y][i])); ++i) {
                         battle_field[y][i] += SUNK_HORIZ - HIT_HORIZ;
                 }
-                --nShipsRemaining[i - x];
+                --n_ships_remaining[i - x];
                 return TRUE;
         } else if (is_vert(battle_field[y][x])) {
                 int i;
@@ -1144,11 +1301,11 @@ int test_ship_status(shipstate_t **battle_field, int nShipsRemaining[], point_t 
                 for (i = y; ((i < ny) && is_ship(battle_field[i][x])); ++i) {
                         battle_field[i][x] += SUNK_VERT - HIT_VERT;
                 }
-                --nShipsRemaining[i - y];
+                --n_ships_remaining[i - y];
                 return TRUE;
         } else if (is_single(battle_field[y][x])) {
                 battle_field[y][x] += SUNK_VERT - HIT_VERT;
-                --nShipsRemaining[1];
+                --n_ships_remaining[1];
                 return TRUE;
         } else {
                 printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
@@ -1162,7 +1319,7 @@ status_t player_shoot(play_fields_t *fld)
         const int ny = fld->ny;
         const int print_color = fld->print_color;
         shipstate_t **data_left = fld->data_left;
-        int *nShipsRemaining_left = fld->nShipsRemaining_left;
+        int *n_ships_remaining_left = fld->n_ships_remaining_left;
 
         int x, y;
         point_t point;
@@ -1199,7 +1356,7 @@ status_t player_shoot(play_fields_t *fld)
         } else if (is_unhit(data_left[y][x])) {
                 data_left[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
                 data_left[y][x] = invert(data_left[y][x]);
-                test_ship_status(data_left, nShipsRemaining_left, point, nx, ny);
+                test_ship_status(nx, ny, n_ships_remaining_left, data_left, point);
                 return SUCCESS_HIT;
         } else {
                 printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
@@ -1217,7 +1374,7 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
         const int nx = fld->nx;
         const int ny = fld->ny;
         shipstate_t **data_right = fld->data_right;
-        int *nShipsRemaining_right = fld->nShipsRemaining_right;
+        int *n_ships_remaining_right = fld->n_ships_remaining_right;
 
         int x, y, hitship;
         point_t point;
@@ -1248,7 +1405,7 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
                 } else if (is_unhit(data_right[y][x])) {
                         data_right[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
                         data_right[y][x] = invert(data_right[y][x]);
-                        test_ship_status(data_right, nShipsRemaining_right, point, nx, ny);
+                        test_ship_status(nx, ny, n_ships_remaining_right, data_right, point);
                 } else {
                         printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                         return;
@@ -1257,7 +1414,7 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
                 if (fld->print_color) printf("\033[1m");
                 printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
                 if (fld->print_color) printf("\033[0m");
-        } while (is_ship(data_right[y][x]) && !has_somemone_won(nShipsRemaining_right, fld->maxShipLength));
+        } while (is_ship(data_right[y][x]) && !has_somemone_won(n_ships_remaining_right, fld->max_ship_length));
 
 #if 0
         if (is_hit(data_right[y][x])) {
@@ -1322,58 +1479,17 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
 #endif
 }
 
-/* Counts how many ships ships of which length have how many hits */
-void countShipHits(shipstate_t **field, int nx, int ny, int shipCount[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1]) {
-        int i;
-        int y;
-        for (i = 0; i <= MAX_SHIP_LENGTH; ++i) {
-                int j;
-                for (j = 0; j <= MAX_SHIP_LENGTH; ++j) {
-                        shipCount[i][j] = 0;
-                }
-        }
-        for (y = 0; y < ny; ++y) {
-                int x;
-                for (x = 0; x < nx; ++x) {
-                        if (is_left(field[y][x])) {
-                                int length = 0, n_hits = 0;
-                                do  {
-                                        if (has_been_shot(field[y][x + length])) {
-                                                ++n_hits;
-                                        }
-                                        ++length;
-                                } while (!is_right(field[y][x + length - 1]));
-                                ++shipCount[length][n_hits];
-                        } else if (is_top(field[y][x])) {
-                                int length = 0, n_hits = 0;
-                                do {
-                                        if (has_been_shot(field[y + length][x])) {
-                                                ++n_hits;
-                                        }
-                                        ++length;
-                                } while (!is_bottom(field[y + length - 1][x]));
-                                ++shipCount[length][n_hits];
-                        } else if (is_single(field[y][x])) {
-                                has_been_shot(field[x][y]) ? ++shipCount[1][1] : ++shipCount[1][0];
-                        }
-                }
-        }
-}
-
 
 int main(int argc, char *argv[])
 {
         /* invert… descibes the coordinates, that should be inverted (last targeted) on the bot's field and on the player's field, when using -c (color-mode) */
         int i, auto_choose = FALSE, difficulty = 50;
         status_t status;
-        int nShipsTotal[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
-        /* ship_count[<length>][<n_hits>] corresponds to the number of ships of length <length> that have been hit <n_hits> times */
-        int ship_count_left[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
-        int ship_count_right[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
+        int n_ships_total[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
         /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
         play_fields_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, MAX_SHIP_LENGTH_INIT, NULL, NULL, FALSE, FALSE, FALSE};
-        memcpy(field.nShipsRemaining_left, nShipsTotal, (MAX_SHIP_LENGTH + 1) * sizeof(int));
-        memcpy(field.nShipsRemaining_right, nShipsTotal, (MAX_SHIP_LENGTH + 1) * sizeof(int));
+        memcpy(field.n_ships_remaining_left, n_ships_total, (MAX_SHIP_LENGTH + 1) * sizeof(int));
+        memcpy(field.n_ships_remaining_right, n_ships_total, (MAX_SHIP_LENGTH + 1) * sizeof(int));
 
         srand(time(NULL));
 
@@ -1403,7 +1519,7 @@ int main(int argc, char *argv[])
 
                                 /* Reset all ship lengths to 0 */
                                 for (shipLen = 0; shipLen <= MAX_SHIP_LENGTH; ++shipLen) {
-                                        nShipsTotal[shipLen] = field.nShipsRemaining_right[shipLen] = field.nShipsRemaining_left[shipLen] = 0;
+                                        n_ships_total[shipLen] = field.n_ships_remaining_right[shipLen] = field.n_ships_remaining_left[shipLen] = 0;
                                 }
 
                                 /* Ignore optional opening delimiters */
@@ -1414,7 +1530,7 @@ int main(int argc, char *argv[])
                                                 printf("Invalid input: number in argument: \"-%s\"!\n", opt);
                                                 return INPUT_ERROR;
                                         }
-                                        nShipsTotal[shipLen] = field.nShipsRemaining_right[shipLen] = field.nShipsRemaining_left[shipLen] = (int)ival;
+                                        n_ships_total[shipLen] = field.n_ships_remaining_right[shipLen] = field.n_ships_remaining_left[shipLen] = (int)ival;
                                         p = endp;
 
                                         if (*p == '}' || *p == ')' || *p == ']') {
@@ -1428,7 +1544,7 @@ int main(int argc, char *argv[])
                                         printf("Perhaps you put in more than %i ship lengths.\n", MAX_SHIP_LENGTH);
                                         return INPUT_ERROR;
                                 }
-                                field.maxShipLength = shipLen;
+                                field.max_ship_length = shipLen;
                         }  else if (strncmp(opt, "s[", 2) == 0) {
                                 char *p;
                                 char *endp;
@@ -1445,10 +1561,10 @@ int main(int argc, char *argv[])
                                         printf("Invalid input: second number in argument: \"%s\"!\n", argv[i]);
                                         return INPUT_ERROR;
                                 }
-                                nShipsTotal[shipLen] = field.nShipsRemaining_right[shipLen] = field.nShipsRemaining_left[shipLen] = (int)nShips;
+                                n_ships_total[shipLen] = field.n_ships_remaining_right[shipLen] = field.n_ships_remaining_left[shipLen] = (int)nShips;
 
-                                if (shipLen > field.maxShipLength) {
-                                        field.maxShipLength = shipLen;
+                                if (shipLen > field.max_ship_length) {
+                                        field.max_ship_length = shipLen;
                                 }
                         } else if (strncmp(opt, "n=", 2) == 0) {
                                 char *endp;
@@ -1504,9 +1620,9 @@ int main(int argc, char *argv[])
                         }
                 }
         }
-        if (field.nx < field.maxShipLength && field.ny < field.maxShipLength) {
+        if (field.nx < field.max_ship_length && field.ny < field.max_ship_length) {
                 if (field.print_color) printf("\033[31;1m");
-                printf("Input Error: your fields (%i x %i) are smaller than the maximum ship length (%i).\n", field.nx, field.ny, field.maxShipLength);
+                printf("Input Error: your fields (%i x %i) are smaller than the maximum ship length (%i).\n", field.nx, field.ny, field.max_ship_length);
                 if (field.print_color) printf("\033[0m");
                 return INPUT_ERROR;
         }
@@ -1521,13 +1637,13 @@ int main(int argc, char *argv[])
         }
 
         /* bot's automatic ship choice */
-        if (auto_choose_ships(field.nx, field.ny, field.data_left, field.nShipsRemaining_left, field.maxShipLength) == INPUT_ERROR) {
+        if (auto_choose_ships(field.nx, field.ny, field.data_left, field.n_ships_remaining_left, field.max_ship_length) == INPUT_ERROR) {
                 free_field(&field);
                 return INPUT_ERROR;
         }
         /* manual or automatic ship choice for the player */
         if (auto_choose) {
-                if (auto_choose_ships(field.nx, field.ny, field.data_right, field.nShipsRemaining_right, field.maxShipLength) == INPUT_ERROR) {
+                if (auto_choose_ships(field.nx, field.ny, field.data_right, field.n_ships_remaining_right, field.max_ship_length) == INPUT_ERROR) {
                         free_field(&field);
                         return INPUT_ERROR;
                 }
@@ -1556,7 +1672,7 @@ int main(int argc, char *argv[])
                                 free_field(&field);
                                 return status;
                         }
-                        if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength)) {
+                        if (has_somemone_won(field.n_ships_remaining_left, field.max_ship_length)) {
                                 print_field(&field);
                                 if (field.print_color) printf("\033[32;1;5m");
                                 if (field.print_utf) {
@@ -1573,10 +1689,10 @@ int main(int argc, char *argv[])
                                 break;
                         }
                 } while (status == SUCCESS_HIT);
-                if (has_somemone_won(field.nShipsRemaining_left, field.maxShipLength) || status == EXIT) break;
+                if (has_somemone_won(field.n_ships_remaining_left, field.max_ship_length) || status == EXIT) break;
 
                 bot_shoot(&field, difficulty);
-                if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) {
+                if (has_somemone_won(field.n_ships_remaining_right, field.max_ship_length)) {
                         print_field(&field);
                         if (field.print_color) printf("\033[31;1;5m");
                         if (field.print_utf) {
@@ -1591,65 +1707,12 @@ int main(int argc, char *argv[])
                         if (field.print_color) printf("\033[0m");
                         break;
                 }
-                if (has_somemone_won(field.nShipsRemaining_right, field.maxShipLength)) break;
+                if (has_somemone_won(field.n_ships_remaining_right, field.max_ship_length)) break;
         }
 
-        /* ship_count[<length>][<n_hits>] corresponds to the number of ships of length <length> that have been hit <n_hits> times */
-        countShipHits(field.data_left, field.nx, field.ny, ship_count_left);
-        countShipHits(field.data_right, field.nx, field.ny, ship_count_right);
-
-        if (field.print_color) printf("\033[32;1;4m");
-        printf("\nPlayer's ships:\n");
-        if (field.print_color) printf("\033[24m");
-        printf("length:%s", field.print_utf ? "│" : "|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i%s", i, field.print_utf ? "│" : "|");
-        field.print_utf ? printf("\n───────┼") : printf("\n-------|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) field.print_utf ? printf("───%s", (i == field.maxShipLength) ? "┤" : "┼") : printf("---|");
-        printf("\n");
-        for (i = 0; i <= field.maxShipLength; ++i) {
-                int length;
-                printf("%2i hit%c%s", i, (i == 1) ? ' ' : 's', field.print_utf ? "│" : "|");
-                for (length = MIN_SHIP_LENGTH; length <= field.maxShipLength; ++length) {
-                        if (i < length) printf("%3i%s", ship_count_right[length][i], field.print_utf ? "│" : "|");
-                        else if (i == length) field.print_color ? printf("\033[35m%3i\033[32m%s", ship_count_right[length][i], field.print_utf ? "│" : "|") : printf("%3i%s", ship_count_right[length][i], field.print_utf ? "│" : "|");
-                        else printf("   %s", field.print_utf ? "│" : "|");
-                }
-                printf("\n");
-        }
-        field.print_utf ? printf("───────┼") : printf("-------|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) field.print_utf ? printf("───%s", (i == field.maxShipLength) ? "┤" : "┼") : printf("---|");
-        printf("\n  sum: %s", field.print_utf ? "│" : "|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i%s", nShipsTotal[i], field.print_utf ? "│" : "|");
-        printf("\n");
-
-        if (field.print_color) printf("\033[31;1;4m");
-        printf("\nBot's ships:\n");
-        if (field.print_color) printf("\033[24m");
-        printf("length:%s", field.print_utf ? "│" : "|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i%s", i, field.print_utf ? "│" : "|");
-        field.print_utf ? printf("\n───────┼") : printf("\n-------|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) field.print_utf ? printf("───%s", (i == field.maxShipLength) ? "┤" : "┼") : printf("---|");
-        printf("\n");
-        for (i = 0; i <= field.maxShipLength; ++i) {
-                int length;
-                printf("%2i hit%c%s", i, (i == 1) ? ' ' : 's', field.print_utf ? "│" : "|");
-                for (length = MIN_SHIP_LENGTH; length <= field.maxShipLength; ++length) {
-                        if (i < length) printf("%3i%s", ship_count_left[length][i], field.print_utf ? "│" : "|");
-                        else if (i == length) field.print_color ? printf("\033[35m%3i\033[31m%s", ship_count_left[length][i], field.print_utf ? "│" : "|") : printf("%3i%s", ship_count_left[length][i], field.print_utf ? "│" : "|");
-                        else printf("   %s", field.print_utf ? "│" : "|");
-                }
-                printf("\n");
-        }
-        field.print_utf ? printf("───────┼") : printf("-------|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) field.print_utf ? printf("───%s", (i == field.maxShipLength) ? "┤" : "┼") : printf("---|");
-        printf("\n  sum: %s", field.print_utf ? "│" : "|");
-        for (i = MIN_SHIP_LENGTH; i <= field.maxShipLength; ++i) printf("%3i%s", nShipsTotal[i], field.print_utf ? "│" : "|");
-        printf("\n\n");
-        if (field.print_color) printf("\033[0m");
-
+        print_stats(&field, n_ships_total);
 
         free_field(&field);
-
         return SUCCESS;
 }
 
