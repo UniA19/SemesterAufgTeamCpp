@@ -32,7 +32,7 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                                 /* reset variables */
                                 length = max_ship_length + 1;
                                 memcpy(n_ships_remaining_cpy, n_ships_remaining, sizeof(n_ships_remaining_cpy));
-                                for (i = 0; i < nx; ++i) {
+                                for (i = 0; i < ny; ++i) {
                                         int j;
                                         for (j = 0; j < nx; ++j) {
                                                 data[i][j] = NONE;

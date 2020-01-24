@@ -117,7 +117,7 @@ typedef enum {
         UP
 } direction_t;
 
-typedef struct {
+typedef struct _play_fields {
         int nx;
         int ny;
         /* num_of_ship_left[i] is the number of i long ships left */
@@ -132,7 +132,7 @@ typedef struct {
         int print_vertical;
 } play_fields_t;
 
-typedef struct {
+typedef struct _point{
         int x;
         int y;
 } point_t;

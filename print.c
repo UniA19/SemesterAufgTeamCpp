@@ -217,7 +217,7 @@ void countShipHits(shipstate_t **field, int nx, int ny, int ship_count[MAX_SHIP_
                                 ++ship_count[length][n_hits];
                         } else if (is_single(field[y][x])) {
                                 /* increment the number of unhit and hit single ships accordingly in ship_count[<length>][<number of hits>] */
-                                has_been_shot(field[x][y]) ? ++ship_count[1][1] : ++ship_count[1][0];
+                                has_been_shot(field[y][x]) ? ++ship_count[1][1] : ++ship_count[1][0];
                         }
                 }
         }
