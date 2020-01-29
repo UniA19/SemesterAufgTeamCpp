@@ -14,30 +14,29 @@
 /* prints horizontal line, deviding the rows (--+---+---+...) */
 void print_hline(int nx, int print_utf)
 {
-        if (print_utf) {
-                if (print_utf == 1) {
-                        int coli;
-                        printf("──┼");
-                        for (coli = 0; coli < nx; ++coli) {
-                                if (coli == nx - 1) {
-                                        printf("───┤");
-                                } else {
-                                        printf("───┼");
-                                }
+        int coli;
+        if (print_utf == 2) {
+                /* special handling for closing line */
+                printf("──┴");
+                for (coli = 0; coli < nx; ++coli) {
+                        if (coli == nx - 1) {
+                                printf("───┘");
+                        } else {
+                                printf("───┴");
                         }
-                } else {
-                        int coli;
-                        printf("──┴");
-                        for (coli = 0; coli < nx; ++coli) {
-                                if (coli == nx - 1) {
-                                        printf("───┘");
-                                } else {
-                                        printf("───┴");
-                                }
+                }
+        }
+        else if (print_utf) {
+                /* regular lines */
+                printf("──┼");
+                for (coli = 0; coli < nx; ++coli) {
+                        if (coli == nx - 1) {
+                                printf("───┤");
+                        } else {
+                                printf("───┼");
                         }
                 }
         } else {
-                int coli;
                 printf("--+");
                 for (coli = 0; coli < nx; ++coli) {
                         printf("---+");
@@ -48,6 +47,12 @@ void print_hline(int nx, int print_utf)
 /* prints top row (  | A | B | C | ... ) */
 void print_top_row(int nx, int print_utf)
 {
+/* TODO - reduce cruft
+ const char* const bar = (print_utf ? "│" : "|");
+ printf("  %s", bar);
+ printf("%c%c %s", .., .., bar);
+  ...
+ */
         if (print_utf) {
                 int coli;
                 printf("  │");
@@ -271,7 +276,7 @@ void print_stats(play_fields_t *fld, int n_ships_total[])
                         for (n_hits = 0; n_hits <= max_ship_length; ++n_hits) {
                                 printf("%s%2i hit%c%s%s", print_color ? "\033[1m" : "", n_hits, (n_hits == 1) ? ' ' : 's', print_color ? "\033[0m" : "", vert_bar);
                                 for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) {
-                                        if (n_hits <= length) print_color ? printf("\033[%sm%3i\033[0m%s", (n_hits == length ? "35" : "31"), ship_count[length][n_hits], vert_bar) : printf("%3i%s", ship_count[length][n_hits], vert_bar);
+                                        if (n_hits <= length) print_color ? printf("\033[%sm%3i\033[0m%s", (n_hits == length ? "35" : (players_field ? "32" : "31")), ship_count[length][n_hits], vert_bar) : printf("%3i%s", ship_count[length][n_hits], vert_bar);
                                         else printf("   %s", vert_bar);
                                 }
                                 printf("\n");

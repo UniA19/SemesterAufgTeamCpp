@@ -174,6 +174,8 @@ int main(int argc, char *argv[])
                         }
                 }
         }
+
+        /* Basic sanity checks */
         if (field.nx < field.max_ship_length && field.ny < field.max_ship_length) {
                 if (field.print_color) printf("\033[31;1m");
                 printf("Input Error: your fields (%i x %i) are smaller than the maximum ship length (%i).\n", field.nx, field.ny, field.max_ship_length);
@@ -181,6 +183,7 @@ int main(int argc, char *argv[])
                 return INPUT_ERROR;
         }
 
+        /* Fields setup */
         field.data_left = alloc_field(field.nx, field.ny);
         field.data_right = alloc_field(field.nx, field.ny);
 
@@ -195,6 +198,7 @@ int main(int argc, char *argv[])
                 free_field(&field);
                 return INPUT_ERROR;
         }
+
         /* manual or automatic ship choice for the player */
         if (auto_choose) {
                 if (auto_choose_ships(field.nx, field.ny, field.data_right, field.n_ships_remaining_right, field.max_ship_length) == INPUT_ERROR) {
@@ -214,6 +218,8 @@ int main(int argc, char *argv[])
                 }
         }
 
+
+        /* The game loop - exit on 'quit' or if someone wins */
         while (1) {
                 do {
                         print_field(&field);

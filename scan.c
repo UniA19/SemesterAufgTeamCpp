@@ -50,7 +50,7 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
         } else {
                 if (isspace(c)) {
                         if (print_color) printf("\033[31;1m");
-                        printf("Input Error: Missing coordinate.");
+                        printf("Input Error: Missing coordinate.\n");
                         if (print_color) printf("\033[0m");
                 } else if (c == '-' && tolower((c = getchar())) == 'h') {
                         if (print_color) printf("\033[32;1m");
