@@ -18,6 +18,7 @@ static shipstate_t ** alloc_field(int nx, int ny)
 
         int i;
         for (i = 0; i < ny; ++i) {
+                /* set pointers to the correct parts of the slab */
                 array2d[i] = slabs;
                 slabs += nx;
         }
@@ -36,17 +37,16 @@ static void free_field(play_fields_t *fld)
 
 int main(int argc, char *argv[])
 {
-        /* invert… descibes the coordinates, that should be inverted (last targeted) on the bot's field and on the player's field, when using -c (color-mode) */
+        /* default settings for various variables */
         int i, auto_choose = FALSE, difficulty = 50;
         status_t status;
         int n_ships_total[MAX_SHIP_LENGTH + 1] = NUM_SHIPS_INIT;
-        /* Default with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
+        /* Default field with 10 x 10, default NUM_SHIPS_INIT, NULL pointers instead of arrays, which are initialized in alloc_field() */
         play_fields_t field = {10, 10, NUM_SHIPS_INIT, NUM_SHIPS_INIT, MAX_SHIP_LENGTH_INIT, NULL, NULL, FALSE, FALSE, FALSE};
-        memcpy(field.n_ships_remaining_left, n_ships_total, (MAX_SHIP_LENGTH + 1) * sizeof(int));
-        memcpy(field.n_ships_remaining_right, n_ships_total, (MAX_SHIP_LENGTH + 1) * sizeof(int));
 
         srand(time(NULL));
 
+        /* check the arguments */
         for (i = 1; i < argc; ++i) {
                 if ('-' == argv[i][0] && '-' != argv[i][1] ) {
                         const char *opt = &argv[i][1];
@@ -153,10 +153,10 @@ int main(int argc, char *argv[])
                         } else if (opt[0] == 'h') {
                                 printf("\nUsage: %s [OPTION]...\n", argv[0]);
                                 printf("\nOptions:\n");
-                                printf(" -a     player's ships are automatically chosen\n");
+                                printf(" -a     Player's ships are automatically chosen\n");
                                 printf(" -c     print fields using ansi colors (note not every console supports this) \n");
                                 printf(" -u     prints fields using UTF-8 characters (note not every console supports this)\n");
-                                printf(" -d=<n> sets the difficulty of the bot with <n> being chance of the bot hitting in percent\n");
+                                printf(" -d=<n> sets the difficulty of the Bot with <n> being chance of the Bot hitting in percent\n");
                                 printf(" -s=<array> sets the number of ships <n> of the length corresponding to the position of <n> in <array>\n");
                                 printf("    <array> = [ \"{\" | \"[\" | \"(\" ] , [ <n> , { \",\" ,  <n> } ] , [ \"}\" | \"]\" | \")\" ] ;\n");
                                 printf(" -s[<length>]=<n> sets the number of ships of the length <length> to <n>\n");
@@ -175,31 +175,34 @@ int main(int argc, char *argv[])
                 }
         }
 
-        /* Basic sanity checks */
+        /* Make sure the ships can actually fit into the field */
         if (field.nx < field.max_ship_length && field.ny < field.max_ship_length) {
-                if (field.print_color) printf("\033[31;1m");
+                print_bold_red(field.print_color);
                 printf("Input Error: your fields (%i x %i) are smaller than the maximum ship length (%i).\n", field.nx, field.ny, field.max_ship_length);
-                if (field.print_color) printf("\033[0m");
+                print_nocolor(field.print_color);
                 return INPUT_ERROR;
         }
 
-        /* Fields setup */
+        /* Allocate memory for the fields */
         field.data_left = alloc_field(field.nx, field.ny);
         field.data_right = alloc_field(field.nx, field.ny);
 
+        /* Check for allocation issues */
         if (field.data_left == NULL || field.data_left == NULL) {
+                print_bold_red(field.print_color);
                 printf("Error recieved NULL-pointer from allocation - %s line %i\n", __FILE__, __LINE__);
+                print_nocolor(field.print_color);
                 free_field(&field);
                 return ALLOC_ERROR;
         }
 
-        /* bot's automatic ship choice */
+        /* Bot's automatic ship choice */
         if (auto_choose_ships(field.nx, field.ny, field.data_left, field.n_ships_remaining_left, field.max_ship_length) == INPUT_ERROR) {
                 free_field(&field);
                 return INPUT_ERROR;
         }
 
-        /* manual or automatic ship choice for the player */
+        /* manual or automatic ship choice for the Player */
         if (auto_choose) {
                 if (auto_choose_ships(field.nx, field.ny, field.data_right, field.n_ships_remaining_right, field.max_ship_length) == INPUT_ERROR) {
                         free_field(&field);
@@ -212,15 +215,14 @@ int main(int argc, char *argv[])
                         return SUCCESS;
                 }
                 if (status < 0) {
-                        printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                         free_field(&field);
                         return status;
                 }
         }
 
-
         /* The game loop - exit on 'quit' or if someone wins */
         while (1) {
+                /* Player gets the first shot */
                 do {
                         print_field(&field);
                         status = player_shoot(&field);
@@ -228,13 +230,12 @@ int main(int argc, char *argv[])
                                 break;
                         }
                         if (status < 0) {
-                                printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                                 free_field(&field);
                                 return status;
                         }
                         if (has_somemone_won(field.n_ships_remaining_left, field.max_ship_length)) {
                                 print_field(&field);
-                                if (field.print_color) printf("\033[32;1;5m");
+                                print_bold_green_blinky(field.print_color);
                                 if (field.print_utf) {
                                         printf("╭───────────────────╮\n");
                                         printf("│ PLAYER has won!!! │\n");
@@ -245,16 +246,19 @@ int main(int argc, char *argv[])
                                         printf("| PLAYER has won!!! |\n");
                                         printf("\\-------------------/\n");
                                 }
-                                if (field.print_color) printf("\033[0m");
+                                print_nocolor(field.print_color);
                                 break;
                         }
+                /* Player keeps shooting, if has hit */
                 } while (status == SUCCESS_HIT);
+                /* break out of the loop */
                 if (has_somemone_won(field.n_ships_remaining_left, field.max_ship_length) || status == EXIT) break;
 
+                /* Bots turn at shooting */
                 bot_shoot(&field, difficulty);
                 if (has_somemone_won(field.n_ships_remaining_right, field.max_ship_length)) {
                         print_field(&field);
-                        if (field.print_color) printf("\033[31;1;5m");
+                        print_bold_red_blinky(field.print_color);
                         if (field.print_utf) {
                                 printf("╭────────────────╮\n");
                                 printf("│ BOT has won!!! │\n");
@@ -264,10 +268,9 @@ int main(int argc, char *argv[])
                                 printf("| BOT has won!!! |\n");
                                 printf("\\----------------/\n");
                         }
-                        if (field.print_color) printf("\033[0m");
+                        print_nocolor(field.print_color);
                         break;
                 }
-                if (has_somemone_won(field.n_ships_remaining_right, field.max_ship_length)) break;
         }
 
         print_stats(&field, n_ships_total);

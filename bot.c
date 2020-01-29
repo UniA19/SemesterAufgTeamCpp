@@ -1,5 +1,6 @@
 #include "bot.h"
 
+/* automatically choses ships for the Player or the Bot */
 status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *n_ships_remaining, int max_ship_length)
 {
         int length;
@@ -12,7 +13,9 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
 
         /* populate with ships - place longest ships first, while there still is enough room */
         for (length = max_ship_length; length >= MIN_SHIP_LENGTH; --length) {
+                /* number of tries to set a ship */
                 int numOfTries = 0;
+                /* set all ship of length "length" */
                 while (n_ships_remaining_cpy[length]) {
                         int i;
                         /* ships can only be set RIGHT (= 0) or DOWN (= 1) */
@@ -23,19 +26,22 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                         /* variable containing the whether there are any ships in the way */
                         int is_free = TRUE;
                         ++numOfTries;
+                        /* If there have been enough failed tries to set a ship the ships are cleared and the algorithm tries again */
                         if (numOfTries > 1000) {
+                                int  y_iter;
+                                /* If there have been enough failed attempts at setting the ships the algorithm gives up */
                                 if (numOfReTries > 1000) {
-                                        printf("\nNo legal postions for the bot's ships found.\n");
+                                        printf("\nNo legal postions for the Bot's ships found.\n");
                                         printf("Increase the value of x or y coordinate, so that there is enough room for the ships.\n\n");
                                         return INPUT_ERROR;
                                 }
                                 /* reset variables */
                                 length = max_ship_length + 1;
                                 memcpy(n_ships_remaining_cpy, n_ships_remaining, sizeof(n_ships_remaining_cpy));
-                                for (i = 0; i < ny; ++i) {
-                                        int j;
-                                        for (j = 0; j < nx; ++j) {
-                                                data[i][j] = NONE;
+                                for (y_iter = 0; y_iter < ny; ++y_iter) {
+                                        int x_iter;
+                                        for (x_iter = 0; x_iter < nx; ++x_iter) {
+                                                data[y_iter][x_iter] = NONE;
                                         }
                                 }
                                 ++numOfReTries;
@@ -64,10 +70,13 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                                         }
                                 }
                         }
+                        /* skip placing the ship, if the position was recognized to be illegal */
                         if (!is_free) continue;
 
+                        /* ship placement of a ship with length 1 */
                         if (length == 1) {
                                 data[y][x] = UNHIT_SINGLE;
+                        /* ship placement of a longer ships */
                         } else {
                                 /* places the ship onto the the boxes, by changing their state to UNHIT */
                                 for (i = 0; i < length; ++i) {
@@ -88,9 +97,12 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
         return SUCCESS;
 }
 
+/* determines if the player/bot has won, based on if there are any ships remaining
+        Note: *n_ships_remaining is from the player/bot who is currently being checked */
 int has_somemone_won(int *n_ships_remaining, int max_ship_length)
 {
         int shipLen;
+        /* Iterate through the number of ships remaining to see if all are zero and the player/bot has won */
         for (shipLen = MIN_SHIP_LENGTH; shipLen <= max_ship_length; ++shipLen) {
                 if (n_ships_remaining[shipLen] != 0)
                         return FALSE;
@@ -98,6 +110,9 @@ int has_somemone_won(int *n_ships_remaining, int max_ship_length)
         return TRUE;
 }
 
+/* tests to see if the all boxes of the ship at position have been hit
+        if that is the case is changes those boxes to "sunk" and return TRUE
+        otherwise returns FALSE, -1 on errors */
 int test_ship_status(int nx, int ny, int n_ships_remaining[], shipstate_t **battle_field, point_t position)
 {
         int x = position.x;
@@ -114,6 +129,7 @@ int test_ship_status(int nx, int ny, int n_ships_remaining[], shipstate_t **batt
                 }
                 /* iterate over the length of the ship and check if every box is hit */
                 for (i = x; ((i < nx) && is_ship(battle_field[y][i])); ++i) {
+                        /* as soon as there is an is a not hit box, the funtion terminates, by returning FALSE */
                         if (!is_hit(battle_field[y][i])) {
                                 if (is_sunk(battle_field[y][i])) {
                                         printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
@@ -135,6 +151,7 @@ int test_ship_status(int nx, int ny, int n_ships_remaining[], shipstate_t **batt
                 }
                 /* iterate over the length of the ship and check if every box is hit */
                 for (i = y; ((i < ny) && is_ship(battle_field[i][x])); ++i) {
+                        /* as soon as there is an is a not hit box, the funtion terminates, by returning FALSE */
                         if (!is_hit(battle_field[i][x])) {
                                 if (is_sunk(battle_field[i][x])) {
                                         printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
@@ -149,29 +166,39 @@ int test_ship_status(int nx, int ny, int n_ships_remaining[], shipstate_t **batt
                 --n_ships_remaining[i - y];
                 return TRUE;
         } else if (is_single(battle_field[y][x])) {
-                battle_field[y][x] += SUNK_VERT - HIT_VERT;
-                --n_ships_remaining[1];
-                return TRUE;
+                /* if the position is a single ship and it is hit, it must be sunk */
+                if (is_hit(battle_field[y][x])) {
+                        battle_field[y][x] += SUNK_VERT - HIT_VERT;
+                        --n_ships_remaining[1];
+                        return TRUE;
+                } else {
+                        /* x, y are from position, which is the position, that has been shot at */
+                        printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
+                        return FALSE;
+                }
         } else {
                 printf("ERROR: Should not be reached - %s line %i\n", __FILE__, __LINE__);
                 return FALSE;
         }
 }
 
-void bot_shoot(play_fields_t *fld, int hit_rate)
+/* handles the Bot's turn */
+void bot_shoot(play_fields_t *fld, int difficulty)
 {
+        /* copies of the struct variables */
         const int nx = fld->nx;
         const int ny = fld->ny;
         shipstate_t **data_right = fld->data_right;
         int *n_ships_remaining_right = fld->n_ships_remaining_right;
 
-        int x, y, hitship;
+        int x, y;
         point_t point;
 
         do {
-                /* determine whether to hit a ship */
-                hitship = (rand() % 100) < hit_rate;
+                /* determine whether or not to hit a ship based on the difficulty/hit_rate */
+                int hitship = (rand() % 100) < difficulty;
 
+                /* generate random unhit position, to shoot at */
                 do {
                         x = rand() % nx;
                         y = rand() % ny;
@@ -180,18 +207,22 @@ void bot_shoot(play_fields_t *fld, int hit_rate)
                 point.x = x;
                 point.y = y;
                 if (data_right[y][x] == NONE) {
+                        /* if the Bot hit water the box is changed to splash invert, whereby the invert signals a possible color inversion on the printout */
                         data_right[y][x] = SPLASH_INVERT;
                 } else if (is_unhit(data_right[y][x])) {
+                        /* if the bot hit an unhit box the box is changed to the corresponding hit, whereby the invert signals a possible color inversion on the printout */
                         data_right[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
                         data_right[y][x] = invert(data_right[y][x]);
+                        /* test for a possibly sunk ship at that location */
                         test_ship_status(nx, ny, n_ships_remaining_right, data_right, point);
                 } else {
                         printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                         return;
                 }
 
-                if (fld->print_color) printf("\033[1m");
+                /* printout of where the Bot shot*/
+                print_bold(fld->print_color);
                 printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
-                if (fld->print_color) printf("\033[0m");
+                print_nocolor(fld->print_color);
         } while (is_ship(data_right[y][x]) && !has_somemone_won(n_ships_remaining_right, fld->max_ship_length));
 }

@@ -7,6 +7,7 @@
 #include <time.h>
 #include <ctype.h>
 
+/* Limits to width and height of each field */
 #define MAX_WIDTH 500
 #define MAX_HEIGHT 99
 
@@ -24,10 +25,27 @@
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-/* debug constants */
-#undef SHOW_BOTS_SHIP
+/* Convenience macros for changing ANSI-colors:
+  set color: '\033[' <clr> { ';' <clr> } 'm'
+    <clr>: https://en.wikipedia.org/wiki/ANSI_escape_code#3/4_bit
+           https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters
 
+  unset color: '\033[0m' */
+#define print_color(is_color, color_string)  { if (is_color) printf(color_string); }
+#define print_bold(is_color)  { print_color((is_color), "\033[1m") }
+#define print_red(is_color)  { print_color((is_color), "\033[31m") }
+#define print_bold_red(is_color)  { print_color((is_color), "\033[31;1m") }
+#define print_bold_red_blinky(is_color)  { print_color((is_color), "\033[31;1;5m") }
+#define print_green(is_color)  { print_color((is_color), "\033[32m") }
+#define print_bold_green(is_color)  { print_color((is_color), "\033[32;1m") }
+#define print_bold_green_blinky(is_color)  { print_color((is_color), "\033[32;1;5m") }
+#define print_bold_blue(is_color)  { print_color((is_color), "\033[34;1m") }
+#define print_bold_cyan(is_color)  { print_color((is_color), "\033[36;1m") }
+#define print_magenta(is_color)  { print_color((is_color), "\033[35m") }
+#define print_bold_magenta(is_color)  { print_color((is_color), "\033[35;1m") }
+#define print_nocolor(is_color)  { print_color((is_color), "\033[0m") }
 
+/* All possible states for each box on the fields */
 typedef enum {
         NONE = 0,               /* 0: unhit - water */
         SPLASH,                 /* 1: hit water */
@@ -53,30 +71,30 @@ typedef enum {
         SUNK_VERT_TOP,          /* 21: top end of vertical, sunken ship */
         SUNK_VERT_BOTTOM,       /* 22: bottom end of vertical, sunken ship */
         SUNK_SINGLE,            /* 23: sunken ship of the lenght 1 */
-        NONE_INVERT,                   /* 24: unhit - water NOTE: after this point the fields are inverted */
-        SPLASH_INVERT,                 /* 25: hit water */
-        UNHIT_HORIZ_INVERT,            /* 26: horizontal */
-        UNHIT_HORIZ_LEFT_INVERT,       /* 27: left end of horizontal, unhit ship on the right field */
-        UNHIT_HORIZ_RIGHT_INVERT,      /* 28: right end of horizontal, unhit ship on the right field */
-        UNHIT_VERT_INVERT,             /* 29: vertical, unhit ship on the right field */
-        UNHIT_VERT_TOP_INVERT,         /* 30: top end of vertical, unhit ship on the right field */
-        UNHIT_VERT_BOTTOM_INVERT,      /* 31: bottom end of vertical, unhit ship on the right field */
-        UNHIT_SINGLE_INVERT,           /* 32: unhit ship on the right field of the length 1 */
-        HIT_INVERT,                    /* 33: hit ship (on left side) */
-        HIT_HORIZ_INVERT,              /* 34: horizontal, hit ship */
-        HIT_HORIZ_LEFT_INVERT,         /* 35: left end of horizontal, hit ship */
-        HIT_HORIZ_RIGHT_INVERT,        /* 36: right end of horizontal, hit ship */
-        HIT_VERT_INVERT,               /* 37: vertical, hit ship */
-        HIT_VERT_TOP_INVERT,           /* 38: top end of vertical, hit ship */
-        HIT_VERT_BOTTOM_INVERT,        /* 39: bottom end of vertical, hit ship */
-        HIT_SINGLE_INVERT,             /* 40: hit ship of the length 1 */
-        SUNK_HORIZ_INVERT,             /* 41: horizontal, sunken ship */
-        SUNK_HORIZ_LEFT_INVERT,        /* 42: left end of horizontal, sunken ship */
-        SUNK_HORIZ_RIGHT_INVERT,       /* 43: right end of horizontal, sunken ship */
-        SUNK_VERT_INVERT,              /* 44: vertical, sunken ship */
-        SUNK_VERT_TOP_INVERT,          /* 45: top end of vertical, sunken ship */
-        SUNK_VERT_BOTTOM_INVERT,       /* 46: bottom end of vertical, sunken ship */
-        SUNK_SINGLE_INVERT            /* 47: sunken ship of the lenght 1 */
+        NONE_INVERT,                    /* 24: unhit - water NOTE: after this point the fields are inverted */
+        SPLASH_INVERT,                  /* 25: hit water */
+        UNHIT_HORIZ_INVERT,             /* 26: horizontal */
+        UNHIT_HORIZ_LEFT_INVERT,        /* 27: left end of horizontal, unhit ship on the right field */
+        UNHIT_HORIZ_RIGHT_INVERT,       /* 28: right end of horizontal, unhit ship on the right field */
+        UNHIT_VERT_INVERT,              /* 29: vertical, unhit ship on the right field */
+        UNHIT_VERT_TOP_INVERT,          /* 30: top end of vertical, unhit ship on the right field */
+        UNHIT_VERT_BOTTOM_INVERT,       /* 31: bottom end of vertical, unhit ship on the right field */
+        UNHIT_SINGLE_INVERT,            /* 32: unhit ship on the right field of the length 1 */
+        HIT_INVERT,                     /* 33: hit ship (on left side) */
+        HIT_HORIZ_INVERT,               /* 34: horizontal, hit ship */
+        HIT_HORIZ_LEFT_INVERT,          /* 35: left end of horizontal, hit ship */
+        HIT_HORIZ_RIGHT_INVERT,         /* 36: right end of horizontal, hit ship */
+        HIT_VERT_INVERT,                /* 37: vertical, hit ship */
+        HIT_VERT_TOP_INVERT,            /* 38: top end of vertical, hit ship */
+        HIT_VERT_BOTTOM_INVERT,         /* 39: bottom end of vertical, hit ship */
+        HIT_SINGLE_INVERT,              /* 40: hit ship of the length 1 */
+        SUNK_HORIZ_INVERT,              /* 41: horizontal, sunken ship */
+        SUNK_HORIZ_LEFT_INVERT,         /* 42: left end of horizontal, sunken ship */
+        SUNK_HORIZ_RIGHT_INVERT,        /* 43: right end of horizontal, sunken ship */
+        SUNK_VERT_INVERT,               /* 44: vertical, sunken ship */
+        SUNK_VERT_TOP_INVERT,           /* 45: top end of vertical, sunken ship */
+        SUNK_VERT_BOTTOM_INVERT,        /* 46: bottom end of vertical, sunken ship */
+        SUNK_SINGLE_INVERT              /* 47: sunken ship of the lenght 1 */
 } shipstate_t;
 
 /* Convenience macros for handling hit/unhit status */
@@ -97,6 +115,7 @@ typedef enum {
 #define invert(box) (is_invert(box) ? (box - INVERT_DIFF) : (box + INVERT_DIFF))
 #define remove_invert(box) ((box) % INVERT_DIFF)
 
+/* Enumeration of the different statuses of a function */
 typedef enum {
         UNKNOWN_ERROR = -5,
         ALLOC_ERROR = -4,
@@ -108,6 +127,7 @@ typedef enum {
         SUCCESS_HIT = 2
 } status_t;
 
+/* Enumeration of the different directions/errors of the function scan_direction() */
 typedef enum {
         BUFFER_ERROR_DIRECTION = BUFFER_ERROR,
         INPUT_ERROR_DIRECTION = INPUT_ERROR,
@@ -117,22 +137,30 @@ typedef enum {
         UP
 } direction_t;
 
+/* Struct of the whole game */
 typedef struct _play_fields {
+        /* Actual width and height of the fields */
         int nx;
         int ny;
         /* num_of_ship_left[i] is the number of i long ships left */
         int n_ships_remaining_left[MAX_SHIP_LENGTH + 1];
         int n_ships_remaining_right[MAX_SHIP_LENGTH + 1];
+        /* longest ship */
         int max_ship_length;
-        /* 0 = unhit water, 1 = hit water, 2 = unhit ship, 3 = hit ship, 4 = sunken ship*/
+        /* 2D-arrays of the battleship field
+                the left one is the field with Bot's ships and the right one with Player's ships */
         shipstate_t **data_left;
         shipstate_t **data_right;
+        /* Flags for whether to print thing using ansi-colors, UTF-8
+        and whether to print the two fields vertically above eachother
+          The user sets the value of the flags, using -c, -u -v flags, when runnning the program */
         int print_color;
         int print_utf;
         int print_vertical;
 } play_fields_t;
 
-typedef struct _point{
+/* Point represented by two coordinates */
+typedef struct _point {
         int x;
         int y;
 } point_t;

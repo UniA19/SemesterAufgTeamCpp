@@ -1,3 +1,4 @@
+/* row_formats represent the three character printout corresponding to each state in the enum shipstate_t */
 static const char *const row_formats[] =
 {
         "   |",         /* 0: unhit - water */
@@ -50,6 +51,7 @@ static const char *const row_formats[] =
         "(+)|"          /* 47: sunken ship of the lenght 1 */
 };
 
+/* row_formats for UTF-8 */
 static const char *const row_formats_utf[] =
 {
         "   │",         /* 0: unhit - water */
@@ -102,7 +104,8 @@ static const char *const row_formats_utf[] =
         "❰┼❱│"         /* 47: sunken ship of the lenght 1 */
 };
 
-/* ansi-colors:
+/*
+row_formats using ansi-colors:
   set color: '\033[' <clr> { ';' <clr> } 'm'
     <clr>: https://en.wikipedia.org/wiki/ANSI_escape_code#3/4_bit
            https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters
@@ -161,6 +164,7 @@ static const char *const row_formats_color[] =
         "\033[35;1;7m(+)\033[0m|"      /* 47: sunken ship of the lenght 1 */
 };
 
+/* row_formats using UTF-8 and ansi-colors */
 static const char *const row_formats_color_utf[] =
 {
         "   │",                         /* 0: unhit - water */
