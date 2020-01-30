@@ -154,19 +154,24 @@ int main(int argc, char *argv[])
                                 printf("\nUsage: %s [OPTION]...\n", argv[0]);
                                 printf("\nOptions:\n");
                                 printf(" -a     Player's ships are automatically chosen\n");
-                                printf(" -c     print fields using ansi colors (note not every console supports this) \n");
+                                printf(" -c     print fields using ansi colors (note not every console supports this)\n");
                                 printf(" -u     prints fields using UTF-8 characters (note not every console supports this)\n");
                                 printf(" -d=<n> sets the difficulty of the Bot with <n> being chance of the Bot hitting in percent\n");
-                                printf(" -s=<array> sets the number of ships <n> of the length corresponding to the position of <n> in <array>\n");
+                                printf(" -s=<array> sets the number of ships of the length corresponding to the position of <n> in <array> to <n>\n");
                                 printf("    <array> = [ \"{\" | \"[\" | \"(\" ] , [ <n> , { \",\" ,  <n> } ] , [ \"}\" | \"]\" | \")\" ] ;\n");
+                                printf("    e.g. '-s={3,2,1}' means there are 3 ships of length 1, 2 ships of length 2 and 1 ship of length 3 and no other ships\n");
+                                printf("    NOTE: when typing brackets as arguments you may have to put quotes around it to avoid it being interpreted, by Shell\n");
                                 printf(" -s[<length>]=<n> sets the number of ships of the length <length> to <n>\n");
+                                printf("    e.g. '-s[3]={2}' means there are 2 ships of length 3 and the number of ships of the other lengths stays the same\n");
+                                printf("    NOTE: when typing brackets as arguments you may have to put quotes around it to avoid it being interpreted, by Shell\n");
                                 printf(" -n=<n> sets the battle-field width and height to <n>\n");
                                 printf(" -x=<n> sets the battle-field width to <n>\n");
                                 printf(" -y=<n> sets the battle-field height to <n>\n");
                                 printf(" -v     prints the fields above eachother\n");
                                 printf("(-h)    shows this help\n\n");
                                 printf("General Help on using the program:\n");
-                                printf("    use '/' to exit the program at any time\n\n");
+                                printf("    use '/' to exit the program at any time\n");
+                                printf("    use '-h' to get help on how to type the coordinates and which ships are what type at any time\n\n");
                                 return SUCCESS;
                         } else {
                                 printf("Unknown argument: \"%s\"!\n", argv[i]);

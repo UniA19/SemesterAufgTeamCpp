@@ -1,6 +1,7 @@
 #include "scan.h"
 #include "print.h"
 #include "bot.h"
+#include "box_formats.inc"
 
 status_t flush_buff()
 {
@@ -22,7 +23,7 @@ e.g.: stdin: "11e" --> *x = 4, *y = 10
  * <digit> --> '0'|'1'|...|'9'
  * <letter> --> 'A'|'B'|...|'Z'|'a'|'b'|...|'z'
  */
-status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
+status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color, int print_utf)
 {
         /* mode: tracks which stage of parsing the function is in:
          * 0 : numbers first: 1st digit
@@ -55,6 +56,7 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
                         printf("Input Error: Missing coordinate.\n");
                         print_nocolor(print_color);
                 } else if (c == '-' && tolower((c = getchar())) == 'h') {
+                        const char *const*box_formats_local = (print_utf ? (print_color ? box_formats_color_utf : box_formats_utf) : (print_color ? box_formats_color : box_formats));
                         /* Geneneral instructions on how to type the coordiantes */
                         print_bold_green(print_color);
                         printf("\nInstructions on typing the coordinate:\n");
@@ -82,7 +84,17 @@ status_t scan_coordinate(int *x, int *y, int nx, int ny, int print_color)
                         printf("               'D' | 'd' | 'S' | 's' | 'V' | 'v' for signaling the direction south- / downwards.\n\n");
                         print_bold_cyan(print_color);
                         printf("Type '/' to exit.\n\n");
+                        print_bold_green(print_color);
+                        printf("Meaning of the different symbols:\n");
                         print_nocolor(print_color);
+                        printf("horizontal ship, unhit on the left, hit on the right: %s%s%s%s\n\n", box_formats_local[UNHIT_HORIZ_LEFT], box_formats_local[UNHIT_HORIZ], box_formats_local[HIT_HORIZ], box_formats_local[HIT_HORIZ_RIGHT]);
+                        printf("vertical ship,      %s   hit ship on the left field and hit water:\n", box_formats_local[UNHIT_VERT_TOP]);
+                        printf("unhit at the top,   %s%s%s%s%s\n", box_formats_local[UNHIT_VERT], box_formats_local[NONE], box_formats_local[HIT], box_formats_local[NONE], box_formats_local[SPLASH]);
+                        printf("hit at the bottom:  %s   single ships unhit and hit:\n", box_formats_local[HIT_VERT]);
+                        printf("                    %s%s%s%s%s\n\n", box_formats_local[HIT_VERT_BOTTOM], box_formats_local[NONE], box_formats_local[UNHIT_SINGLE], box_formats_local[NONE], box_formats_local[HIT_SINGLE]);
+                        printf("various sunk ships: %s%s%s%s%s\n", box_formats_local[SUNK_VERT_TOP], box_formats_local[NONE],  box_formats_local[SUNK_HORIZ_LEFT], box_formats_local[SUNK_HORIZ], box_formats_local[SUNK_HORIZ_RIGHT]);
+                        printf("                    %s\n", box_formats_local[SUNK_VERT]);
+                        printf("                    %s%s%s\n\n", box_formats_local[SUNK_VERT_BOTTOM], box_formats_local[NONE], box_formats_local[SUNK_SINGLE]);
                 } else {
                         print_bold_red(print_color);
                         printf("Input Error: Unknown coordinate character: '%c' (coordinates must only consist of letters and digits).\n", c);
@@ -309,6 +321,7 @@ status_t choose_ships(play_fields_t *fld)
         const int nx = fld->nx;
         const int ny = fld->ny;
         const int print_color = fld->print_color;
+        const int print_utf = fld->print_utf;
         shipstate_t **field_right = fld->field_right;
         const int max_ship_length = fld->max_ship_length;
         /* n_ships_remaining[i] is the number of i long ships left */
@@ -358,7 +371,7 @@ status_t choose_ships(play_fields_t *fld)
                 else printf("  e.g. 'A1 2s' a ship at coordinate (A, 1) with length 2 and facing down- / southwards (for further information type '-h')\n");
 
                 /* scan coordinate and direction, where ship should be placed */
-                status = scan_coordinate(&x, &y, nx, ny, print_color);
+                status = scan_coordinate(&x, &y, nx, ny, print_color, print_utf);
                 switch (status) {
                         /* If the user did not add length/direction he must mean length */
                         case SUCCESS_ENDL:
@@ -490,6 +503,7 @@ status_t player_shoot(play_fields_t *fld)
         const int nx = fld->nx;
         const int ny = fld->ny;
         const int print_color = fld->print_color;
+        const int print_utf = fld->print_utf;
         shipstate_t **field_left = fld->field_left;
         int *n_ships_remaining_left = fld->n_ships_remaining_left;
 
@@ -501,7 +515,7 @@ status_t player_shoot(play_fields_t *fld)
         printf("Type the coordinates, where you want to shoot at (for further information type '-h').\n");
         print_nocolor(print_color);
         /* scanning coordinates, that the player wants to shoot at */
-        while ((status = scan_coordinate(&x, &y, nx, ny, print_color)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(field_left[y][x])))  {
+        while ((status = scan_coordinate(&x, &y, nx, ny, print_color, print_utf)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(field_left[y][x])))  {
                 if (status == SUCCESS) {
                         flush_buff();
                 }

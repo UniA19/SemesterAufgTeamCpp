@@ -1,5 +1,5 @@
 #include "print.h"
-#include "row_formats.inc"
+#include "box_formats.inc"
 
 /* The gap between left and right fields, when not printing vertically */
 #define print_gap() (printf("        "))
@@ -80,14 +80,14 @@ void print_row(int nx, shipstate_t row[], int row_num, int is_left_field, int pr
                 /* Different possible printing modes */
                 if (print_color) {
                         if (print_utf) {
-                                printf(row_formats_color_utf[state]);
+                                printf(box_formats_color_utf[state]);
                         } else {
-                                printf(row_formats_color[state]);
+                                printf(box_formats_color[state]);
                         }
                 } else if (print_utf) {
-                        printf(row_formats_utf[state]);
+                        printf(box_formats_utf[state]);
                 } else {
-                        printf(row_formats[state]);
+                        printf(box_formats[state]);
                 }
 
                 /* remove inversion after having printed it */
@@ -325,8 +325,8 @@ void print_stats(play_fields_t *fld, const int n_ships_total[])
                                         } else {
                                                 printf("   %s", vert_bar);
                                         }
-                                        putchar('\n');
                                 }
+                                putchar('\n');
                         }
                         /* horizontal line: --+---+---+...*/
                         print_stat_hline(max_ship_length, print_utf);
