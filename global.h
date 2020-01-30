@@ -149,8 +149,8 @@ typedef struct _play_fields {
         int max_ship_length;
         /* 2D-arrays of the battleship field
                 the left one is the field with Bot's ships and the right one with Player's ships */
-        shipstate_t **data_left;
-        shipstate_t **data_right;
+        shipstate_t **field_left;
+        shipstate_t **field_right;
         /* Flags for whether to print thing using ansi-colors, UTF-8
         and whether to print the two fields vertically above eachother
           The user sets the value of the flags, using -c, -u -v flags, when runnning the program */

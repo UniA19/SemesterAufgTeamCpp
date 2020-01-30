@@ -309,7 +309,7 @@ status_t choose_ships(play_fields_t *fld)
         const int nx = fld->nx;
         const int ny = fld->ny;
         const int print_color = fld->print_color;
-        shipstate_t **data_right = fld->data_right;
+        shipstate_t **field_right = fld->field_right;
         const int max_ship_length = fld->max_ship_length;
         /* n_ships_remaining[i] is the number of i long ships left */
         int n_ships_remaining[MAX_SHIP_LENGTH + 1];
@@ -434,7 +434,7 @@ status_t choose_ships(play_fields_t *fld)
                                 int k;
                                 for (k = -1; k <= 1 && is_free; ++k) {
                                         /* first check if the point is within the field (0 <= point < size) and then whether the the point is occupied */
-                                        if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && is_unhit(data_right[y_h + k][x_h + j])) {
+                                        if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && is_unhit(field_right[y_h + k][x_h + j])) {
                                                 is_free = FALSE;
                                         }
                                 }
@@ -451,23 +451,23 @@ status_t choose_ships(play_fields_t *fld)
 
                 /* Actual setting of the ship */
                 if (length == 1) {
-                        data_right[y][x] = UNHIT_SINGLE;
+                        field_right[y][x] = UNHIT_SINGLE;
                 } else {
                         /* place the ship onto the the boxes, by changing their state to UNHIT */
                         for (i = 0; i < length; ++i) {
                                 /* in-/decrease one coordinate by i based on the direction */
                                 switch (direction) {
                                         case RIGHT:
-                                                data_right[y][x + i] = ((i == 0) ? UNHIT_HORIZ_LEFT : ((i == length - 1) ? UNHIT_HORIZ_RIGHT : UNHIT_HORIZ));
+                                                field_right[y][x + i] = ((i == 0) ? UNHIT_HORIZ_LEFT : ((i == length - 1) ? UNHIT_HORIZ_RIGHT : UNHIT_HORIZ));
                                                 break;
                                         case DOWN:
-                                                data_right[y + i][x] = ((i == 0) ? UNHIT_VERT_TOP : ((i == length - 1) ? UNHIT_VERT_BOTTOM : UNHIT_VERT));
+                                                field_right[y + i][x] = ((i == 0) ? UNHIT_VERT_TOP : ((i == length - 1) ? UNHIT_VERT_BOTTOM : UNHIT_VERT));
                                                 break;
                                         case LEFT:
-                                                data_right[y][x - i] = ((i == 0) ? UNHIT_HORIZ_RIGHT : ((i == length - 1) ? UNHIT_HORIZ_LEFT : UNHIT_HORIZ));
+                                                field_right[y][x - i] = ((i == 0) ? UNHIT_HORIZ_RIGHT : ((i == length - 1) ? UNHIT_HORIZ_LEFT : UNHIT_HORIZ));
                                                 break;
                                         case UP:
-                                                data_right[y - i][x] = ((i == 0) ? UNHIT_VERT_BOTTOM : ((i == length - 1) ? UNHIT_VERT_TOP : UNHIT_VERT));
+                                                field_right[y - i][x] = ((i == 0) ? UNHIT_VERT_BOTTOM : ((i == length - 1) ? UNHIT_VERT_TOP : UNHIT_VERT));
                                                 break;
                                         default:
                                                 print_bold_red_blinky(print_color);
@@ -490,7 +490,7 @@ status_t player_shoot(play_fields_t *fld)
         const int nx = fld->nx;
         const int ny = fld->ny;
         const int print_color = fld->print_color;
-        shipstate_t **data_left = fld->data_left;
+        shipstate_t **field_left = fld->field_left;
         int *n_ships_remaining_left = fld->n_ships_remaining_left;
 
         int x, y;
@@ -501,11 +501,11 @@ status_t player_shoot(play_fields_t *fld)
         printf("Type the coordinates, where you want to shoot at (for further information type '-h').\n");
         print_nocolor(print_color);
         /* scanning coordinates, that the player wants to shoot at */
-        while ((status = scan_coordinate(&x, &y, nx, ny, print_color)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(data_left[y][x])))  {
+        while ((status = scan_coordinate(&x, &y, nx, ny, print_color)) == INPUT_ERROR || (status >= SUCCESS && has_been_shot(field_left[y][x])))  {
                 if (status == SUCCESS) {
                         flush_buff();
                 }
-                if (status >= SUCCESS && has_been_shot(data_left[y][x])) {
+                if (status >= SUCCESS && has_been_shot(field_left[y][x])) {
                         print_bold_red(print_color);
                         printf("Don't waste your shots: this box has already been shot at by you.\n");
                         print_nocolor(print_color);
@@ -526,13 +526,13 @@ status_t player_shoot(play_fields_t *fld)
         point.x = x;
         point.y = y;
         /* Actual changing of the box state to represent shooting */
-        if (data_left[y][x] == NONE) {
-                data_left[y][x] = SPLASH_INVERT;
+        if (field_left[y][x] == NONE) {
+                field_left[y][x] = SPLASH_INVERT;
                 return SUCCESS;
-        } else if (is_unhit(data_left[y][x])) {
-                data_left[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
-                data_left[y][x] = invert(data_left[y][x]);
-                test_ship_status(nx, ny, n_ships_remaining_left, data_left, point);
+        } else if (is_unhit(field_left[y][x])) {
+                field_left[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
+                field_left[y][x] = invert(field_left[y][x]);
+                test_ship_status(nx, ny, n_ships_remaining_left, field_left, point);
                 return SUCCESS_HIT;
         } else {
                 print_bold_red_blinky(print_color);

@@ -25,13 +25,13 @@ static shipstate_t ** alloc_field(int nx, int ny)
         return array2d;
 }
 
-/* frees the memory used in both the data_left and data_right 2D-array */
+/* frees the memory used in both the field_left and field_right 2D-array */
 static void free_field(play_fields_t *fld)
 {
-        if (fld->data_left != NULL)  free(fld->data_left[0]);
-        if (fld->data_right != NULL)  free(fld->data_right[0]);
-        free(fld->data_left);
-        free(fld->data_right);
+        if (fld->field_left != NULL)  free(fld->field_left[0]);
+        if (fld->field_right != NULL)  free(fld->field_right[0]);
+        free(fld->field_left);
+        free(fld->field_right);
 }
 
 
@@ -184,11 +184,11 @@ int main(int argc, char *argv[])
         }
 
         /* Allocate memory for the fields */
-        field.data_left = alloc_field(field.nx, field.ny);
-        field.data_right = alloc_field(field.nx, field.ny);
+        field.field_left = alloc_field(field.nx, field.ny);
+        field.field_right = alloc_field(field.nx, field.ny);
 
         /* Check for allocation issues */
-        if (field.data_left == NULL || field.data_left == NULL) {
+        if (field.field_left == NULL || field.field_left == NULL) {
                 print_bold_red(field.print_color);
                 printf("Error recieved NULL-pointer from allocation - %s line %i\n", __FILE__, __LINE__);
                 print_nocolor(field.print_color);
@@ -197,14 +197,14 @@ int main(int argc, char *argv[])
         }
 
         /* Bot's automatic ship choice */
-        if (auto_choose_ships(field.nx, field.ny, field.data_left, field.n_ships_remaining_left, field.max_ship_length) == INPUT_ERROR) {
+        if (auto_choose_ships(field.nx, field.ny, field.n_ships_remaining_left, field.max_ship_length, field.field_left) == INPUT_ERROR) {
                 free_field(&field);
                 return INPUT_ERROR;
         }
 
         /* manual or automatic ship choice for the Player */
         if (auto_choose) {
-                if (auto_choose_ships(field.nx, field.ny, field.data_right, field.n_ships_remaining_right, field.max_ship_length) == INPUT_ERROR) {
+                if (auto_choose_ships(field.nx, field.ny, field.n_ships_remaining_right, field.max_ship_length, field.field_right) == INPUT_ERROR) {
                         free_field(&field);
                         return INPUT_ERROR;
                 }

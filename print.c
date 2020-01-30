@@ -56,7 +56,7 @@ void print_top_row(int nx, int print_utf)
 }
 
 /* prints row including the numbering at the beginning of the line ( 1|~~~|XXX|~~~|...) */
-void print_row(shipstate_t row[], int nx, int row_num, int is_left_field, int print_color, int print_utf)
+void print_row(int nx, shipstate_t row[], int row_num, int is_left_field, int print_color, int print_utf)
 {
         int coli;
 
@@ -101,8 +101,8 @@ void print_field(play_fields_t *fld)
         /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
-        shipstate_t **data_left = fld->data_left;
-        shipstate_t **data_right = fld->data_right;
+        shipstate_t **field_left = fld->field_left;
+        shipstate_t **field_right = fld->field_right;
         const int print_vertical = fld->print_vertical;
         const int print_color = fld->print_color;
         const int print_utf = fld->print_utf;
@@ -139,10 +139,10 @@ void print_field(play_fields_t *fld)
                                 /* other rows:   <row>|~~~|XXX|...*/
                                 if (!players_field) {
                                         /* Bot's rows */
-                                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf);
+                                        print_row(nx, field_left[row], row + 1, 1, print_color, print_utf);
                                 } else {
                                         /* Player's rows */
-                                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf);
+                                        print_row(nx, field_right[row], row + 1, 0, print_color, print_utf);
                                 }
                                 putchar('\n');
                         }
@@ -175,9 +175,9 @@ void print_field(play_fields_t *fld)
                         print_hline(nx, print_utf);
                         putchar('\n');
                         /* other rows:   <row>|~~~|XXX|...          |   |XXX|... */
-                        print_row(data_left[row], nx, row + 1, 1, print_color, print_utf);
+                        print_row(nx, field_left[row], row + 1, 1, print_color, print_utf);
                         print_gap();
-                        print_row(data_right[row], nx, row + 1, 0, print_color, print_utf);
+                        print_row(nx, field_right[row], row + 1, 0, print_color, print_utf);
                         putchar('\n');
                 }
                 /* horizontal line: --+---+---+...        --+---+---+... */
@@ -204,8 +204,8 @@ void print_stat_hline(int max_ship_length, int print_utf)
         }
 }
 
-/* Counts how many ships ships of which length have how many hits */
-void countShipHits(shipstate_t **field, int nx, int ny, int ship_count[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1]) {
+/* Counts how many ships ships of which length have how many hits and saves the values in ship_count */
+void countShipHits(const int nx, const int ny, shipstate_t **field, int ship_count[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1]) {
         int i, y;
         /* Make sure the ship_count-array is zero initialized */
         for (i = 0; i <= MAX_SHIP_LENGTH; ++i) {
@@ -249,14 +249,14 @@ void countShipHits(shipstate_t **field, int nx, int ny, int ship_count[MAX_SHIP_
 }
 
 /* prints the statistics at the end of the game */
-void print_stats(play_fields_t *fld, int n_ships_total[])
+void print_stats(play_fields_t *fld, const int n_ships_total[])
 {
         /* copies of the struct values */
         const int nx = fld->nx;
         const int ny = fld->ny;
         const int max_ship_length = fld->max_ship_length;
-        shipstate_t **data_left = fld->data_left;
-        shipstate_t **data_right = fld->data_right;
+        shipstate_t **field_left = fld->field_left;
+        shipstate_t **field_right = fld->field_right;
         const int print_vertical = fld->print_vertical;
         const int print_color = fld->print_color;
         const int print_utf = fld->print_utf;
@@ -279,13 +279,13 @@ void print_stats(play_fields_t *fld, int n_ships_total[])
                 for (players_field = 0; players_field <= 1; ++players_field) {
                         if (!players_field) {
                                 /* count get array ship_count filled with the stats */
-                                countShipHits(data_left, nx, ny, ship_count);
+                                countShipHits(nx, ny, field_left, ship_count);
                                 print_bold_red(print_color);
                                 /* print "BOT's ships" centered */
                                 printf("\n%*s%*s\n", (nCharsX + (int)strlen(bot_title)) / 2, bot_title, nCharsX - (nCharsX + (int)strlen(bot_title)) / 2, "");
                         } else {
                                 /* count get array ship_count filled with the stats */
-                                countShipHits(data_right, nx, ny, ship_count);
+                                countShipHits(nx, ny, field_right, ship_count);
                                 print_bold_green(print_color);
                                 /* print "PLAYER's ships" centered */
                                 printf("\n%*s%*s\n", (nCharsX + (int)strlen(player_title)) / 2, player_title, nCharsX - (nCharsX + (int)strlen(player_title)) / 2, "");
@@ -313,14 +313,14 @@ void print_stats(play_fields_t *fld, int n_ships_total[])
                                 for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) {
                                         if (n_hits <= length) {
                                                 if (n_hits == length) {
-                                                        print_magenta(print_color)
+                                                        print_magenta(print_color);
                                                 } else if (players_field) {
-                                                        print_green(print_color)
+                                                        print_green(print_color);
                                                 } else {
-                                                        print_red(print_color)
+                                                        print_red(print_color);
                                                 }
                                                 printf("%3i", ship_count[length][n_hits]);
-                                                print_nocolor(print_color)
+                                                print_nocolor(print_color);
                                                 printf(vert_bar);
                                         } else {
                                                 printf("   %s", vert_bar);
@@ -339,9 +339,9 @@ void print_stats(play_fields_t *fld, int n_ships_total[])
                         printf(vert_bar);
                         for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) {
                                 if (players_field) {
-                                        print_bold_green(print_color)
+                                        print_bold_green(print_color);
                                 } else {
-                                        print_bold_red(print_color)
+                                        print_bold_red(print_color);
                                 }
                                 printf("%3i", n_ships_total[length]);
                                 print_nocolor(print_color);
@@ -355,8 +355,8 @@ void print_stats(play_fields_t *fld, int n_ships_total[])
                 int ship_count_left[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
                 int ship_count_right[MAX_SHIP_LENGTH + 1][MAX_SHIP_LENGTH + 1];
                 /* count get array ship_count filled with the stats */
-                countShipHits(data_left, nx, ny, ship_count_left);
-                countShipHits(data_right, nx, ny, ship_count_right);
+                countShipHits(nx, ny, field_left, ship_count_left);
+                countShipHits(nx, ny, field_right, ship_count_right);
 
                 /* title: e.g.:     BOT's ships     */
                 print_bold_red(print_color);
@@ -397,9 +397,9 @@ void print_stats(play_fields_t *fld, int n_ships_total[])
                         for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) {
                                 if (n_hits <= length) {
                                         if (n_hits == length) {
-                                                print_magenta(print_color)
+                                                print_magenta(print_color);
                                         } else {
-                                                print_red(print_color)
+                                                print_red(print_color);
                                         }
                                         printf("%3i", ship_count_left[length][n_hits]);
                                         print_nocolor(print_color);
@@ -416,9 +416,9 @@ void print_stats(play_fields_t *fld, int n_ships_total[])
                         for (length = MIN_SHIP_LENGTH; length <= max_ship_length; ++length) {
                                 if (n_hits <= length) {
                                         if (n_hits == length) {
-                                                print_magenta(print_color)
+                                                print_magenta(print_color);
                                         } else {
-                                                print_green(print_color)
+                                                print_green(print_color);
                                         }
                                         printf("%3i", ship_count_right[length][n_hits]);
                                         print_nocolor(print_color);

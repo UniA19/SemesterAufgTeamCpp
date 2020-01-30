@@ -1,7 +1,7 @@
 #include "bot.h"
 
 /* automatically choses ships for the Player or the Bot */
-status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *n_ships_remaining, int max_ship_length)
+status_t auto_choose_ships(const int nx, const int ny, const int *n_ships_remaining, const int max_ship_length, shipstate_t **battle_field)
 {
         int length;
         /* number of times the field was reset, because of ship-jamming */
@@ -21,8 +21,8 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                         /* ships can only be set RIGHT (= 0) or DOWN (= 1) */
                         const direction_t direction = rand() % 2;
                         /* change the possible coordinates, so that the ship fully on the field */
-                        int x = (direction == DOWN) ? rand() % nx : rand() % (nx - (length - 1));
-                        int y = (direction == DOWN) ? rand() % (ny - (length - 1)) : rand() % ny;
+                        const int x = (direction == DOWN) ? rand() % nx : rand() % (nx - (length - 1));
+                        const int y = (direction == DOWN) ? rand() % (ny - (length - 1)) : rand() % ny;
                         /* variable containing the whether there are any ships in the way */
                         int is_free = TRUE;
                         ++numOfTries;
@@ -41,7 +41,7 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                                 for (y_iter = 0; y_iter < ny; ++y_iter) {
                                         int x_iter;
                                         for (x_iter = 0; x_iter < nx; ++x_iter) {
-                                                data[y_iter][x_iter] = NONE;
+                                                battle_field[y_iter][x_iter] = NONE;
                                         }
                                 }
                                 ++numOfReTries;
@@ -64,7 +64,7 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                                         int k;
                                         for (k = -1; k <= 1 && is_free; ++k) {
                                                 /* first check if the point is within the field (0 <= point < size) and then whether the the point is occupied */
-                                                if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && is_unhit(data[y_h + k][x_h + j])) {
+                                                if (0 <= (y_h + k) && (y_h + k) < ny && 0 <= (x_h + j) && (x_h + j) < nx && is_unhit(battle_field[y_h + k][x_h + j])) {
                                                         is_free = FALSE;
                                                 }
                                         }
@@ -75,7 +75,7 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
 
                         /* ship placement of a ship with length 1 */
                         if (length == 1) {
-                                data[y][x] = UNHIT_SINGLE;
+                                battle_field[y][x] = UNHIT_SINGLE;
                         /* ship placement of a longer ships */
                         } else {
                                 /* places the ship onto the the boxes, by changing their state to UNHIT */
@@ -83,10 +83,10 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
                                         /* ships can only be RIGHT (= 0) or DOWN (= 1) */
                                         if (direction == DOWN) {
                                                 /* direction = DOWN */
-                                                data[y + i][x] = ((i == 0) ? UNHIT_VERT_TOP : ((i == length - 1) ? UNHIT_VERT_BOTTOM : UNHIT_VERT));
+                                                battle_field[y + i][x] = ((i == 0) ? UNHIT_VERT_TOP : ((i == length - 1) ? UNHIT_VERT_BOTTOM : UNHIT_VERT));
                                         } else {
                                                 /* direction = RIGHT */
-                                                data[y][x + i] = ((i == 0) ? UNHIT_HORIZ_LEFT : ((i == length - 1) ? UNHIT_HORIZ_RIGHT : UNHIT_HORIZ));
+                                                battle_field[y][x + i] = ((i == 0) ? UNHIT_HORIZ_LEFT : ((i == length - 1) ? UNHIT_HORIZ_RIGHT : UNHIT_HORIZ));
                                         }
                                 }
                         }
@@ -99,7 +99,7 @@ status_t auto_choose_ships(const int nx, const int ny, shipstate_t **data, int *
 
 /* determines if the player/bot has won, based on if there are any ships remaining
         Note: *n_ships_remaining is from the player/bot who is currently being checked */
-int has_somemone_won(int *n_ships_remaining, int max_ship_length)
+int has_somemone_won(int *n_ships_remaining, const int max_ship_length)
 {
         int shipLen;
         /* Iterate through the number of ships remaining to see if all are zero and the player/bot has won */
@@ -113,7 +113,7 @@ int has_somemone_won(int *n_ships_remaining, int max_ship_length)
 /* tests to see if the all boxes of the ship at position have been hit
         if that is the case is changes those boxes to "sunk" and return TRUE
         otherwise returns FALSE, -1 on errors */
-int test_ship_status(int nx, int ny, int n_ships_remaining[], shipstate_t **battle_field, point_t position)
+int test_ship_status(const int nx, const int ny, int n_ships_remaining[], shipstate_t **battle_field, const point_t position)
 {
         int x = position.x;
         int y = position.y;
@@ -183,12 +183,12 @@ int test_ship_status(int nx, int ny, int n_ships_remaining[], shipstate_t **batt
 }
 
 /* handles the Bot's turn */
-void bot_shoot(play_fields_t *fld, int difficulty)
+void bot_shoot(play_fields_t *fld, const int difficulty)
 {
         /* copies of the struct variables */
         const int nx = fld->nx;
         const int ny = fld->ny;
-        shipstate_t **data_right = fld->data_right;
+        shipstate_t **field_right = fld->field_right;
         int *n_ships_remaining_right = fld->n_ships_remaining_right;
 
         int x, y;
@@ -202,19 +202,19 @@ void bot_shoot(play_fields_t *fld, int difficulty)
                 do {
                         x = rand() % nx;
                         y = rand() % ny;
-                } while (hitship ? !(is_unhit(data_right[y][x])) : (data_right[y][x] != NONE));
+                } while (hitship ? !(is_unhit(field_right[y][x])) : (field_right[y][x] != NONE));
 
                 point.x = x;
                 point.y = y;
-                if (data_right[y][x] == NONE) {
+                if (field_right[y][x] == NONE) {
                         /* if the Bot hit water the box is changed to splash invert, whereby the invert signals a possible color inversion on the printout */
-                        data_right[y][x] = SPLASH_INVERT;
-                } else if (is_unhit(data_right[y][x])) {
+                        field_right[y][x] = SPLASH_INVERT;
+                } else if (is_unhit(field_right[y][x])) {
                         /* if the bot hit an unhit box the box is changed to the corresponding hit, whereby the invert signals a possible color inversion on the printout */
-                        data_right[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
-                        data_right[y][x] = invert(data_right[y][x]);
+                        field_right[y][x] += (HIT_HORIZ - UNHIT_HORIZ);
+                        field_right[y][x] = invert(field_right[y][x]);
                         /* test for a possibly sunk ship at that location */
-                        test_ship_status(nx, ny, n_ships_remaining_right, data_right, point);
+                        test_ship_status(nx, ny, n_ships_remaining_right, field_right, point);
                 } else {
                         printf("ERROR: Should not occur - %s line %i\n", __FILE__, __LINE__);
                         return;
@@ -224,5 +224,5 @@ void bot_shoot(play_fields_t *fld, int difficulty)
                 print_bold(fld->print_color);
                 printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
                 print_nocolor(fld->print_color);
-        } while (is_ship(data_right[y][x]) && !has_somemone_won(n_ships_remaining_right, fld->max_ship_length));
+        } while (is_ship(field_right[y][x]) && !has_somemone_won(n_ships_remaining_right, fld->max_ship_length));
 }
