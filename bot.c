@@ -222,7 +222,7 @@ void bot_shoot(play_fields_t *fld, const int difficulty)
 
                 /* printout of where the Bot shot*/
                 print_bold(fld->print_color);
-                printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y);
+                printf("Bot shot at: %c%c%i\n", (x < 26 ? ' ' : (x / 26 - 1) + 'A'), ((x % 26) + 'A'), y + 1);
                 print_nocolor(fld->print_color);
         } while (is_ship(field_right[y][x]) && !has_somemone_won(n_ships_remaining_right, fld->max_ship_length));
 }
